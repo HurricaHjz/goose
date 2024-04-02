@@ -1,0 +1,3 @@
+/home/moss/COMP4550/goose/CMakeFiles/search.dir
+/home/moss/COMP4550/goose/CMakeFiles/edit_cache.dir
+/home/moss/COMP4550/goose/CMakeFiles/rebuild_cache.dir
