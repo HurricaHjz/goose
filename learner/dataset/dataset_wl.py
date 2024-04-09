@@ -147,16 +147,24 @@ def get_dataset_from_args(args):
     graphs = []
     ys = []
 
+    y_true = [] ## MODIFICATION: The randomly generated data for ALL train
+
     for graph, schema_cnt in dataset:
         graphs.append(graph)
-        test = 0
+        test = 0 #NOTE: just to test whether schema_cnt with ALL_KEY stores the sum of all other vars
         for k in schema_keys:
             if k not in schema_cnt:
                 schema_cnt[k] = 0  # probably should never happen?
             test += schema_cnt[k] if k != ALL_KEY else 0
         assert test == schema_cnt[ALL_KEY]
-        ys.append(schema_cnt)
 
+        ## MODIFICATION: The randomly generated data for ALL train
+        random_p = np.random.rand()
+        y_true.append(random_p)
+        schema_cnt[ALL_KEY] = random_p
+        ys.append(schema_cnt)
+    print(f"saved test random probability y with length {len(y_true)}")
+    np.savez("test_prob_y.npz", array = np.array(y_true))
     return graphs, ys
 
 

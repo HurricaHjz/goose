@@ -128,7 +128,7 @@ def main():
 
     # load dataset
     graphs, y_true = get_dataset_from_args(args)
-
+    # NOTE: to define schemata which used later for y vals
     schema_strat = args.schema_count
     schemata = sorted(list(y_true[0].keys())) if schema_strat else [ALL_KEY]
     if schema_strat == _SC_STRAT_NONE:
@@ -140,6 +140,7 @@ def main():
     args.schemata = schemata
 
     if _TRAIN_ALL:
+        print("indeed train all")
         graphs_train = graphs
         y_train = y_true
         assert schema_strat == _SC_STRAT_NONE
@@ -167,6 +168,7 @@ def main():
     for y_dict in y_train:
         for s in schemata:
             y_train_true[s].append(y_dict[s])
+    print(f"TEST: y should only have one key: {y_train_true.keys()}")
     print(f"Set up training data in {time.time()-t:.2f}s")
 
     # validation data
@@ -207,7 +209,8 @@ def main():
     print(f"Predicting completed in {time.time()-t:.2f}s")
 
     # metrics
-    print("Scores on prediction against h*:")
+    # print("Scores on prediction against h*:")
+    print("Scores on prediction against p*:") ## MODIFICATION: changed p* val
     itrs = list(product(scoring.keys(), schemata))
     train_scores = {
         (m, s): scoring[m](y_train_true[s], y_train_pred[s]) for m, s in itrs
