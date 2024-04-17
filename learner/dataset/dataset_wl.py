@@ -163,30 +163,7 @@ def get_dataset_from_args(args):
         y_true.append(random_p)
         schema_cnt[ALL_KEY] = random_p
         ys.append(schema_cnt)
-    print(f"saved test random probability y with length {len(y_true)}")
+    print(f"saved test random probability y with length {len(y_true)} \n =true_y: {y_true[:7]}")
     np.savez("test_prob_y.npz", array = np.array(y_true))
     return graphs, ys
 
-
-# [i-dual-MCMP-p2] num. variables = 319
-# [i-dual-MCMP-p2] num. constraints = 183
-# # goals reachable: 16
-# P(goal) = 0.9
-# P(fringe) = 0
-# P(dead-end) = 0.1
-# V(s0) = 100009
-# Optimal Planner is DONE!
-# V*(s0) = 100009
-# Simulating the obtained solution for 1 rounds. This should NOT be used for final experimental results
-# Observed Avg cost = 10
-# Observed Ratio of goal-reached rounds = 1
-# [i-dual-mcmp] total time spent encoding (in usecs) = 72769
-# [i-dual-mcmp] total time spent by Gurobi (in usecs) = 57094
-# [i-dual-mcmp] total cputime in MaxProb = 123265 (ratio: 0.902498)
-# [i-dual-mcmp] total cputime in MinCost = 13317 (ratio: 0.0975019)
-# [state-hash]: number states = 0
-# Max Resident Mem: 13128 KB
-# Human formatted cputime+sys time: 0m 0s 148ms
-# [end-session]
-# [h-max-all-out-det heuristic]: total calls = 996
-# [h-max-all-out-det heuristic]: 95CI cputime (in secs) = 0.0000135 -+ 0.0000007

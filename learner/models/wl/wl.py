@@ -203,7 +203,7 @@ class Model:
         # assert schema in self._models  # slow to assert during runtime when used by a planner
         # print(f"Predicting number of {schema} in a plan...")
         ret = self._models[schema].predict(X)
-        # print(f"test out for y {ret}")
+        # print(f"test out for y {list(ret)}")
         return ret
 
     def predict_with_std(self, X, schema=ALL_KEY) -> Tuple[np.array, np.array]:

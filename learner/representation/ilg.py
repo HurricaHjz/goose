@@ -43,6 +43,7 @@ class InstanceLearningGraph(Representation):
             ] = f"ap {pred.name}"
 
     def str_to_state(self, s) -> LiftedState:
+        # this function takes input s as a list of facts for example: "(clear b1)" -- type: <class 'str'>
         """Used in dataset construction to convert string representation of facts into a (pred, [args]) representation"""
         state = []
         for fact in s:

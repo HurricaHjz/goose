@@ -1,0 +1,4 @@
+[training]
+domain_pddl = "benchmarks/mcmp/exbw.domain_det.NO-COND.pddl"
+tasks_dir = "benchmarks/mcmp/training"
+plans_dir = ""
