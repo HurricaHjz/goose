@@ -111,11 +111,69 @@ def get_plan_info(domain_pddl, problem_pddl, plan_file, args):
     return ret
 
 
+# def get_graphs_from_plans(args):
+#     print("Generating graphs from plans...")
+#     dataset = []  # can probably make a class for this
+
+#     schema_keys = set()
+
+#     representation = args.rep
+#     domain_pddl = args.domain_pddl
+#     tasks_dir = args.tasks_dir
+#     plans_dir = args.plans_dir
+
+#     for plan_file in tqdm(sorted(list(os.listdir(plans_dir)))):
+#         problem_pddl = f"{tasks_dir}/{plan_file.replace('.plan', '.pddl')}"
+#         assert os.path.exists(problem_pddl), problem_pddl
+#         plan_file = f"{plans_dir}/{plan_file}"
+#         rep = REPRESENTATIONS[representation](domain_pddl, problem_pddl)
+
+#         plan = get_plan_info(domain_pddl, problem_pddl, plan_file, args)
+
+#         for s, schema_cnt in plan:
+#             s = rep.str_to_state(s)
+#             graph = rep.state_to_cgraph(s)
+#             dataset.append((graph, schema_cnt))
+#             schema_keys = schema_keys.union(set(schema_cnt.keys()))
+
+#     print("Graphs generated!")
+#     return dataset, schema_keys
+
+# def get_dataset_from_args(args):
+#     """Returns list of graphs, and dictionaries where keys are given by h* and schema counts"""
+#     dataset, schema_keys = get_graphs_from_plans(args)
+
+#     graphs = []
+#     ys = []
+
+#     y_true = [] ## MODIFICATION: The randomly generated data for ALL train
+
+#     for graph, schema_cnt in dataset:
+#         graphs.append(graph)
+#         test = 0 #NOTE: just to test whether schema_cnt with ALL_KEY stores the sum of all other vars
+#         for k in schema_keys:
+#             if k not in schema_cnt:
+#                 schema_cnt[k] = 0  # probably should never happen?
+#             test += schema_cnt[k] if k != ALL_KEY else 0
+#         assert test == schema_cnt[ALL_KEY]
+
+#         ## MODIFICATION: The randomly generated data for ALL train
+#         random_p = np.random.rand()
+#         y_true.append(random_p)
+#         schema_cnt[ALL_KEY] = random_p
+#         ys.append(schema_cnt)
+#     print(f"saved test random probability y with length {len(y_true)} \n =true_y: {y_true[:7]}")
+#     np.savez("test_prob_y.npz", array = np.array(y_true))
+#     return graphs, ys
+
+
+
+# Modified version that use txt for generate plan
 def get_graphs_from_plans(args):
     print("Generating graphs from plans...")
     dataset = []  # can probably make a class for this
 
-    schema_keys = set()
+    y_keys = set()
 
     representation = args.rep
     domain_pddl = args.domain_pddl
@@ -123,47 +181,55 @@ def get_graphs_from_plans(args):
     plans_dir = args.plans_dir
 
     for plan_file in tqdm(sorted(list(os.listdir(plans_dir)))):
-        problem_pddl = f"{tasks_dir}/{plan_file.replace('.plan', '.pddl')}"
+        print(f'plan file name: {plan_file}')
+        problem_pddl = f"{tasks_dir}/{plan_file.replace('.txt', '.pddl')}"
         assert os.path.exists(problem_pddl), problem_pddl
         plan_file = f"{plans_dir}/{plan_file}"
-        rep = REPRESENTATIONS[representation](domain_pddl, problem_pddl)
+        rep = REPRESENTATIONS[representation](domain_pddl, problem_pddl) # get rep and plan_file name
+        
+        # out own policy (plan file) that has the format of [state] = x*
+        with open(plan_file, 'r') as file:
+            for line in file:
+                # Split the line at ']' to separate facts from the float value
+                parts = line.split(') ] = ')
+                if len(parts) < 2:
+                    continue  # Skip lines that do not conform to the expected format
+                
+                # Clean and split the facts part to extract individual facts
+                facts = parts[0][3:].strip().split(') (')  # Removes the leading '[' and splits the facts
+                facts = ['(' + f + ')' for f in facts]  # Add back the closing parenthesis removed by split
+                
+                # Convert the list of facts to a set and back to a list to ensure uniqueness and ready for graph
+                s = sorted(list(set(facts)))
+                
+                # Parse the float value to the y_dict
+                value = float(parts[1].strip())
+                y_dict = {ALL_KEY : value} # just to align with output format
 
-        plan = get_plan_info(domain_pddl, problem_pddl, plan_file, args)
+                s = rep.str_to_state(s)
+                graph = rep.state_to_cgraph(s)
 
-        for s, schema_cnt in plan:
-            s = rep.str_to_state(s)
-            graph = rep.state_to_cgraph(s)
-            dataset.append((graph, schema_cnt))
-            schema_keys = schema_keys.union(set(schema_cnt.keys()))
+                dataset.append((graph, y_dict))
+                y_keys = y_keys.union(set(y_dict.keys()))
 
-    print("Graphs generated!")
-    return dataset, schema_keys
+    print("My Graphs generated!")
+    return dataset, y_keys
 
 
 def get_dataset_from_args(args):
     """Returns list of graphs, and dictionaries where keys are given by h* and schema counts"""
-    dataset, schema_keys = get_graphs_from_plans(args)
+    dataset, _ = get_graphs_from_plans(args)
 
     graphs = []
     ys = []
 
     y_true = [] ## MODIFICATION: The randomly generated data for ALL train
 
-    for graph, schema_cnt in dataset:
+    for graph, y_dict in dataset:
         graphs.append(graph)
-        test = 0 #NOTE: just to test whether schema_cnt with ALL_KEY stores the sum of all other vars
-        for k in schema_keys:
-            if k not in schema_cnt:
-                schema_cnt[k] = 0  # probably should never happen?
-            test += schema_cnt[k] if k != ALL_KEY else 0
-        assert test == schema_cnt[ALL_KEY]
-
-        ## MODIFICATION: The randomly generated data for ALL train
-        random_p = np.random.rand()
-        y_true.append(random_p)
-        schema_cnt[ALL_KEY] = random_p
-        ys.append(schema_cnt)
-    print(f"saved test random probability y with length {len(y_true)} \n =true_y: {y_true[:7]}")
-    np.savez("test_prob_y.npz", array = np.array(y_true))
+        ys.append(y_dict)
+        y_true.append(y_dict[ALL_KEY])
+    print(f"saved test X* in y with length {len(y_true)} \ntrue_y: {y_true[:7]}")
+    np.savez("test_y.npz", array = np.array(y_true))
     return graphs, ys
 
