@@ -188,7 +188,7 @@ def parse_pddl_init_section(pddl_file_path):
 
     return all_init
 
-# Modified version that use txt for generate dataset, y_keys pairs
+# Modified version that use txt for generate t graphs
 def get_tensor_graph(tasks_dir, plans_dir, representation, domain_pddl):
     graphs = []
     for plan_file in tqdm(sorted(list(os.listdir(plans_dir)))):
@@ -238,7 +238,7 @@ def get_tensor_graph(tasks_dir, plans_dir, representation, domain_pddl):
                 graphs.append(graph)
     return graphs 
         
-# Modified version that generate both train and test data
+# Modified version that generate both train and test graphs
 def get_tensor_graphs_from_plans(args, test:bool = True):
     print("Generating graphs from plans...")
     representation = args.rep
@@ -255,19 +255,28 @@ def get_tensor_graphs_from_plans(args, test:bool = True):
     return train_graphs, test_graphs
 
 
-# Modified version that collect final graph, y pairs
+# Modified version that returns train/valid/test loader
 def get_loaders_from_args_gnn(args, test:bool = True):
     batch_size = args.batch_size
     small_train = args.small_train
 
-    trainset, testset = get_tensor_graphs_from_plans(args, test)
+
+    testset = []
+    dataset, testset = get_tensor_graphs_from_plans(args, test)
     if small_train:
         random.seed(123)
         dataset = random.sample(dataset, k=1000)
 
+    trainset, valset = train_test_split(
+        dataset, test_size=0.15, random_state=4550
+    )
+
+    get_stats(dataset=dataset, desc="Whole dataset")
     get_stats(dataset=trainset, desc="Train set")
+    get_stats(dataset=valset, desc="Validation set")
     get_stats(dataset=testset, desc="Test set")
     print("train size:", len(trainset))
+    print("val size:", len(valset))
     print("test size:", len(testset))
 
     train_loader = DataLoader(
@@ -275,10 +284,15 @@ def get_loaders_from_args_gnn(args, test:bool = True):
         batch_size=batch_size,
         shuffle=True,
     )
+    val_loader = DataLoader(
+        valset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
     test_loader = DataLoader(
         testset,
         batch_size=batch_size,
         shuffle=False,
     )
 
-    return train_loader, test_loader
+    return train_loader, val_loader, test_loader

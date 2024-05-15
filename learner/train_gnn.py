@@ -104,7 +104,7 @@ if __name__ == "__main__":
     )
 
     # init model
-    train_loader, val_loader = get_loaders_from_args_gnn(args)
+    train_loader, val_loader, test_loader = get_loaders_from_args_gnn(args)
     args.n_edge_labels = len(train_loader.dataset[0].edge_index)
     args.in_feat = train_loader.dataset[0].x.shape[1]
     model_params = arg_to_params(args)
@@ -143,11 +143,11 @@ if __name__ == "__main__":
             )
             train_loss = train_stats["loss"]
             val_stats = evaluate(model, device, val_loader, criterion)
-            test_loss = val_stats["loss"]
-            scheduler.step(test_loss)
+            val_loss = val_stats["loss"]
+            scheduler.step(val_loss)
 
             # take model weights corresponding to best combined metric
-            combined_metric = (train_loss + 2 * test_loss) / 3
+            combined_metric = (train_loss + 2 * val_loss) / 3
             if combined_metric < best_metric:
                 best_metric = combined_metric
                 best_dict = model.model.state_dict()
@@ -157,7 +157,7 @@ if __name__ == "__main__":
                 f"epoch {e}, "
                 f"time {time.time() - t:.1f}, "
                 f"train_loss {train_loss:.2f}, "
-                f"test_loss {test_loss:.2f} "
+                f"val_loss {val_loss:.2f} "
             )
             print(desc)
 
@@ -173,3 +173,6 @@ if __name__ == "__main__":
         print(f"best_avg_loss {best_metric:.8f} at epoch {best_epoch}")
         args.best_metric = best_metric
         save_gnn_model_from_dict(best_dict, args)
+        test_stats = evaluate(model, device, test_loader, criterion)
+        test_loss = test_stats["loss"]
+        print(f'final test mse loss: {test_loss}')

@@ -63,7 +63,7 @@ python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire.toml -
 python3 train.py experiments/models/gnn_mean_ilg.toml experiments/mcmp/exbw.toml --save-file blocksworld_gnn.model
 ```
 ```
-python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire.toml --save-file mcmp_tire_gnn.model
+python3 train.py experiments/models/gnn_mean_ilg.toml experiments/mcmp/tire.toml --save-file mcmp_tire_gnn.model
 ```
 ## Heuristic Search
 - see `run_wl.py` for WL models and `run_gnn.py` for GNN models
