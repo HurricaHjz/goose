@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument("domain_pddl")
     parser.add_argument("tasks_dir")
     parser.add_argument("plans_dir")
+    # MODIFICATION: allow test plan dir to be parsed
+    parser.add_argument("plans_tests_dir")
 
     # model params
     parser.add_argument("-L", "--nlayers", type=int, default=4)
@@ -141,11 +143,11 @@ if __name__ == "__main__":
             )
             train_loss = train_stats["loss"]
             val_stats = evaluate(model, device, val_loader, criterion)
-            val_loss = val_stats["loss"]
-            scheduler.step(val_loss)
+            test_loss = val_stats["loss"]
+            scheduler.step(test_loss)
 
             # take model weights corresponding to best combined metric
-            combined_metric = (train_loss + 2 * val_loss) / 3
+            combined_metric = (train_loss + 2 * test_loss) / 3
             if combined_metric < best_metric:
                 best_metric = combined_metric
                 best_dict = model.model.state_dict()
@@ -155,7 +157,7 @@ if __name__ == "__main__":
                 f"epoch {e}, "
                 f"time {time.time() - t:.1f}, "
                 f"train_loss {train_loss:.2f}, "
-                f"val_loss {val_loss:.2f} "
+                f"test_loss {test_loss:.2f} "
             )
             print(desc)
 

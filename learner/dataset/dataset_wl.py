@@ -272,7 +272,9 @@ def get_graphs_from_plans(args, test:bool = False):
     plans_tests_dir = args.plans_tests_dir
 
     dataset, y_keys = get_graph_y(tasks_dir, plans_dir, representation, domain_pddl)
-    test_dataset, test_y_keys = get_graph_y(tasks_dir, plans_tests_dir, representation, domain_pddl)
+    test_dataset, test_y_keys = [], set()
+    if test:
+        test_dataset, test_y_keys = get_graph_y(tasks_dir, plans_tests_dir, representation, domain_pddl)
     print("My Graphs generated!")
     return dataset, test_dataset,  y_keys, test_y_keys
 

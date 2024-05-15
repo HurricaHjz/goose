@@ -47,6 +47,10 @@ sh setup.sh
 ```
 python3 train.py experiments/models/wl_ilg_gpr.toml experiments/ipc23-learning/blocksworld.toml --save-file blocksworld_wl.model
 ```
+### Example for GNN models
+```
+python3 train.py experiments/models/gnn_mean_ilg.toml experiments/ipc23-learning/blocksworld.toml --save-file blocksworld_gnn.model
+```
 ### Example for WL models on MCMP
 ```
 python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/exbw.toml --save-file mcmp_exbw_wl.model
@@ -54,11 +58,13 @@ python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/exbw.toml -
 ```
 python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire.toml --save-file mcmp_tire_wl.model
 ```
-### Example for GNN models
+### Example for GNN models on MCMP
 ```
-python3 train.py experiments/models/gnn_mean_ilg.toml experiments/ipc23-learning/blocksworld.toml --save-file blocksworld_gnn.model
+python3 train.py experiments/models/gnn_mean_ilg.toml experiments/mcmp/exbw.toml --save-file blocksworld_gnn.model
 ```
-
+```
+python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire.toml --save-file mcmp_tire_gnn.model
+```
 ## Heuristic Search
 - see `run_wl.py` for WL models and `run_gnn.py` for GNN models
 - GNN models automatically try to use GPU where possible and CPU otherwise
