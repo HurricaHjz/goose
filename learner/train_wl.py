@@ -18,7 +18,8 @@ from util.metrics import f1_macro
 
 warnings.filterwarnings("ignore")
 
-_TRAIN_ALL = True
+_TRAIN_ALL = False # testing, print as validation but actually not validation
+# _TEST_SIZE = 0.3
 
 _SC_STRAT_ALL = "all"
 _SC_STRAT_NONE = "none"
@@ -41,6 +42,9 @@ def parse_args():
     parser.add_argument("domain_pddl")
     parser.add_argument("tasks_dir")
     parser.add_argument("plans_dir")
+
+    # MODIFICATION: allow test plan dir to be parsed
+    parser.add_argument("plans_tests_dir")
 
     # ml model arguments
     parser.add_argument(
@@ -127,10 +131,13 @@ def main():
     random.seed(args.seed)
 
     # load dataset
-    graphs, y_true = get_dataset_from_args(args)
+    # graphs, y_true = get_dataset_from_args(args, not _TRAIN_ALL)
+    # MODIFICATION: load both train/test dataset
+    graphs_train, graphs_val, y_train, y_val = get_dataset_from_args(args, not _TRAIN_ALL)
+    
     # NOTE: to define schemata which used later for y vals
     schema_strat = args.schema_count
-    schemata = sorted(list(y_true[0].keys())) if schema_strat else [ALL_KEY]
+    schemata = sorted(list(y_train[0].keys())) if schema_strat else [ALL_KEY]
     if schema_strat == _SC_STRAT_NONE:
         schemata = [ALL_KEY]
     elif schema_strat == _SC_STRAT_ALL:
@@ -139,15 +146,15 @@ def main():
         schemata.remove(ALL_KEY)
     args.schemata = schemata
 
-    if _TRAIN_ALL:
-        print("indeed train all")
-        graphs_train = graphs
-        y_train = y_true
-        assert schema_strat == _SC_STRAT_NONE
-    else:
-        graphs_train, graphs_val, y_train, y_val = train_test_split(
-            graphs, y_true, test_size=0.33, random_state=args.seed
-        )
+    # if _TRAIN_ALL:
+    #     print("indeed train all")
+    #     graphs_train = graphs
+    #     y_train = y_true
+    #     assert schema_strat == _SC_STRAT_NONE
+    # else:
+    #     graphs_train, graphs_val, y_train, y_val = train_test_split(
+    #         graphs, y_true, test_size=_TEST_SIZE, random_state=args.seed
+    #     )
 
     # class decides whether to use classifier or regressor
     model = models.wl.Model(args)
@@ -204,7 +211,7 @@ def main():
     print("  For train...")
     y_train_pred = model.predict_all(X_train)
     if not _TRAIN_ALL:
-        print("  For val...")
+        print("  For testing...")
         y_val_pred = model.predict_all(X_val)
     print(f"Predicting completed in {time.time()-t:.2f}s")
 
@@ -223,7 +230,7 @@ def main():
     schemata_to_keep = set()
     for metric in scoring:
         if not _TRAIN_ALL:
-            print(f"{metric:<10} {'schema':<20} {'train':<10} {'val':<10}")
+            print(f"{metric:<10} {'schema':<20} {'train':<10} {'test':<10}")
             for schema in schemata:
                 t = train_scores[(metric, schema)]
                 v = val_scores[(metric, schema)]

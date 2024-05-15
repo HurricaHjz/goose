@@ -19,8 +19,11 @@ if __name__ == "__main__":
 
     train_script = f"train_{model_config['model']['method']}.py"
     data_args = [
+        # os.path.abspath(data_config["training"][arg])
+        # for arg in ["domain_pddl", "tasks_dir", "plans_dir"]
+        # MODIFICATION: Allow the testing directory to be parsed separately for training/testing
         os.path.abspath(data_config["training"][arg])
-        for arg in ["domain_pddl", "tasks_dir", "plans_dir"]
+        for arg in ["domain_pddl", "tasks_dir", "plans_dir","plans_tests_dir"]
     ]
     config_args = []
     for var, val in model_config["config"].items():

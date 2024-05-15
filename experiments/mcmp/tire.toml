@@ -1,0 +1,5 @@
+[training]
+domain_pddl = "benchmarks/mcmp/tire.domain_det.pddl"
+tasks_dir = "benchmarks/mcmp/tasks_tire"
+plans_dir = "benchmarks/mcmp/plans_train_tire"
+plans_tests_dir = "benchmarks/mcmp/plans_test_tire"

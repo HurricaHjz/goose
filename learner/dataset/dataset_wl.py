@@ -167,28 +167,61 @@ def get_plan_info(domain_pddl, problem_pddl, plan_file, args):
 #     return graphs, ys
 
 
+# MODIFICATION:
+def parse_pddl_init_section(pddl_file_path):
+    # This function reads a PDDL file and extracts the initial state predicates.
+    all_init = set()
+    in_init_section = False
 
-# Modified version that use txt for generate plan
-def get_graphs_from_plans(args):
-    print("Generating graphs from plans...")
-    dataset = []  # can probably make a class for this
+    try:
+        with open(pddl_file_path, 'r') as file:
+            for line in file:
+                stripped_line = line.strip()
+                
+                # Check if the init section begins
+                if stripped_line.startswith('(:init'):
+                    in_init_section = True
+                    stripped_line = stripped_line.replace("(:init", "").strip()
+                
+                # If in the init section, add predicates to the set
+                if in_init_section:
+                    # Check if the init section ends
+                    if stripped_line.endswith('))'):
+                        in_init_section = False
+                        stripped_line = stripped_line[:-1]
+                    # Remove comments if any
+                    cleaned_line = stripped_line.split(';')[0].strip()
+                    if cleaned_line:  # Ensure it's not an empty line
+                        fact_lists = stripped_line.strip()[1:-1].split(') (')
+                        if len(fact_lists) == 1:
+                            print("split in another form")
+                            fact_lists = fact_lists[0].split(')(')
+                        for fact in fact_lists:
+                            all_init.add('(' + fact + ')')
 
+    except FileNotFoundError:
+        print("The specified file was not found.")
+
+    return all_init
+
+# Modified version that use txt for generate dataset, y_keys pairs
+def get_graph_y(tasks_dir, plans_dir, representation, domain_pddl):
+    dataset = [] 
     y_keys = set()
-
-    representation = args.rep
-    domain_pddl = args.domain_pddl
-    tasks_dir = args.tasks_dir
-    plans_dir = args.plans_dir
-
     for plan_file in tqdm(sorted(list(os.listdir(plans_dir)))):
         print(f'plan file name: {plan_file}')
         problem_pddl = f"{tasks_dir}/{plan_file.replace('.txt', '.pddl')}"
         assert os.path.exists(problem_pddl), problem_pddl
         plan_file = f"{plans_dir}/{plan_file}"
         rep = REPRESENTATIONS[representation](domain_pddl, problem_pddl) # get rep and plan_file name
+
+        # get all init propositions
+        all_init = parse_pddl_init_section(problem_pddl)
+        static_facts = set()
         
         # out own policy (plan file) that has the format of [state] = x*
         with open(plan_file, 'r') as file:
+            is_init = True # if needed to determine static facts
             for line in file:
                 # Split the line at ']' to separate facts from the float value
                 parts = line.split(') ] = ')
@@ -200,7 +233,23 @@ def get_graphs_from_plans(args):
                 facts = ['(' + f + ')' for f in facts]  # Add back the closing parenthesis removed by split
                 
                 # Convert the list of facts to a set and back to a list to ensure uniqueness and ready for graph
-                s = sorted(list(set(facts)))
+                s = set(facts)
+
+                # if is the first line (init), then compare to get the static predicates
+                if is_init:
+                    is_init = False
+                    static_facts.update(all_init - s)
+                    # print("update num, should only once")
+                    # print(f's before: {s} with length {len(s)}')
+                    # print(f'all init : {all_init} with length {len(all_init)}')
+                    # print(f'static facts : {static_facts} with length {len(static_facts)}')
+
+                s = s | static_facts
+                s = sorted(list(s))
+                # print(f's after: {s} with length {len(s)}')
+                # return
+
+                
                 
                 # Parse the float value to the y_dict
                 value = float(parts[1].strip())
@@ -211,17 +260,31 @@ def get_graphs_from_plans(args):
 
                 dataset.append((graph, y_dict))
                 y_keys = y_keys.union(set(y_dict.keys()))
+    return dataset, y_keys 
+        
+# Modified version that generate both train and test data
+def get_graphs_from_plans(args, test:bool = False):
+    print("Generating graphs from plans...")
+    representation = args.rep
+    domain_pddl = args.domain_pddl
+    tasks_dir = args.tasks_dir
+    plans_dir = args.plans_dir
+    plans_tests_dir = args.plans_tests_dir
 
+    dataset, y_keys = get_graph_y(tasks_dir, plans_dir, representation, domain_pddl)
+    test_dataset, test_y_keys = get_graph_y(tasks_dir, plans_tests_dir, representation, domain_pddl)
     print("My Graphs generated!")
-    return dataset, y_keys
+    return dataset, test_dataset,  y_keys, test_y_keys
 
-
-def get_dataset_from_args(args):
+# Modified version that collect final graph, y pairs
+def get_dataset_from_args(args, test:bool = False):
     """Returns list of graphs, and dictionaries where keys are given by h* and schema counts"""
-    dataset, _ = get_graphs_from_plans(args)
+    dataset, test_dataset, _, _ = get_graphs_from_plans(args, test)
 
     graphs = []
+    test_graphs = []
     ys = []
+    test_ys = []
 
     y_true = [] ## MODIFICATION: The randomly generated data for ALL train
 
@@ -229,7 +292,10 @@ def get_dataset_from_args(args):
         graphs.append(graph)
         ys.append(y_dict)
         y_true.append(y_dict[ALL_KEY])
-    print(f"saved test X* in y with length {len(y_true)} \ntrue_y: {y_true[:7]}")
-    np.savez("test_y.npz", array = np.array(y_true))
-    return graphs, ys
+    for graph, y_dict in test_dataset:
+        test_graphs.append(graph)
+        test_ys.append(y_dict)
+    # print(f"saved test X* in y with length {len(y_true)} \ntrue_y: {y_true[:7]}")
+    # np.savez("test_y.npz", array = np.array(y_true))
+    return graphs, test_graphs, ys, test_ys
 
