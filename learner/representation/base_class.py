@@ -14,7 +14,7 @@ GroundedState = Iterable[Proposition]
 LiftedState = Iterable[Tuple[str, List[str]]]
 
 # graph representation represented as a tensor for GNNs
-TGraph = Union[Tuple[Tensor, Tensor], Tuple[Tensor, List[Tensor]]]
+TGraph = Union[Tuple[Tensor, Tensor], Tuple[Tensor, List[Tensor]]] # one of the two possible form, first is x which has shape N*F, second is edge_indices which has shape (list)[2*edges]
 
 # graph representation represented as a nx.graph for graph kernels
 CGraph = Union[nx.Graph, nx.DiGraph]

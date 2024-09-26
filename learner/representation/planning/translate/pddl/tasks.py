@@ -98,6 +98,7 @@ class Requirements:
                 ":conditional-effects",
                 ":derived-predicates",
                 ":action-costs",
+                ":probabilistic-effects" #MODIFICATION add prob effect
             ), req
 
     def __str__(self):

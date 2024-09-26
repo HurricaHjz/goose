@@ -109,7 +109,7 @@ def parse_condition_aux(alist, negated, type_dict, predicate_dict):
 
 
 def parse_literal(alist, type_dict, predicate_dict, negated=False):
-    if alist[0] == "not":
+    if alist[0] == "not": #TODO add probability here
         assert len(alist) == 2
         alist = alist[1]
         negated = not negated
@@ -395,6 +395,7 @@ def parse_domain_pddl(domain_pddl):
     ]
     seen_fields = []
     first_action = None
+    # This part allows all the domain definition before action to be parsed
     for opt in iterator:
         field = opt[0]
         if field not in correct_order:
@@ -417,11 +418,11 @@ def parse_domain_pddl(domain_pddl):
         if field == ":requirements":
             requirements = pddl.Requirements(opt[1:])
         elif field == ":types":
-            the_types.extend(parse_typed_list(opt[1:], constructor=pddl.Type))
+            the_types.extend(parse_typed_list(opt[1:], constructor=pddl.Type)) # add types (e.g. location - object) to the_type
         elif field == ":constants":
-            constants = parse_typed_list(opt[1:])
+            constants = parse_typed_list(opt[1:]) # add constansts as TypedObj (e.g. up, right, down, left, see sokoban domain)
         elif field == ":predicates":
-            the_predicates = [parse_predicate(entry) for entry in opt[1:]]
+            the_predicates = [parse_predicate(entry) for entry in opt[1:]] # parse Predicate(name, arguments) where arguments are a list of TypedObj with name ?x (e.g. road ?from - location ?to - location)
             the_predicates += [
                 pddl.Predicate(
                     "=",
@@ -430,11 +431,11 @@ def parse_domain_pddl(domain_pddl):
                         pddl.TypedObject("?y", "object"),
                     ],
                 )
-            ]
-        elif field == ":functions":
+            ] # manually add equality predicate
+        elif field == ":functions": 
             the_functions = parse_typed_list(
                 opt[1:], constructor=parse_function, default_type="number"
-            )
+            ) # not evaluated yet
     set_supertypes(the_types)
     yield requirements
     yield the_types

@@ -242,7 +242,7 @@ class LiftedLearningGraph(Representation):
                     u_of_edge=pred.name,
                     v_of_edge=obj.name,
                     edge_label=LlgEdgeLabels.NEUTRAL.value,
-                )
+                ) # objects and predicates
 
         # goal (state gets dealt with in state_to_tgraph)
         if len(self.problem.goal.parts) == 0:
@@ -306,7 +306,7 @@ class LiftedLearningGraph(Representation):
             )
             for i, arg in enumerate(action.parameters):
                 arg_node = (action.name, f"action-var-{i}")  # action var
-                G.add_node(arg_node, x=len(LlgFeatures) + i)
+                G.add_node(arg_node, x=len(LlgFeatures) + i) # schema args
                 action_args[arg.name] = arg_node
                 G.add_edge(
                     u_of_edge=action.name,
@@ -319,14 +319,15 @@ class LiftedLearningGraph(Representation):
                     pred = predicate.predicate
                     # aux node for duplicate preds
                     aux_node = (pred, f"{edge_label}-aux-{z}")
-                    G.add_node(aux_node, x=LlgFeatures.Z.value)
+                    G.add_node(aux_node, x=LlgFeatures.Z.value) # schema predicates
 
                     assert pred in G.nodes()
                     G.add_edge(
                         u_of_edge=pred,
                         v_of_edge=aux_node,
                         edge_label=edge_label,
-                    )
+                    ) # link between original predicate and schema
+                    
 
                     if len(predicate.args) > 0:
                         for j, arg in enumerate(predicate.args):
@@ -334,7 +335,7 @@ class LiftedLearningGraph(Representation):
                                 arg,
                                 f"{edge_label}-aux-{z}-var-{j}",
                             )
-                            G.add_node(prec_arg_node, x=len(LlgFeatures) + j)
+                            G.add_node(prec_arg_node, x=len(LlgFeatures) + j) # predicate args
                             G.add_edge(
                                 u_of_edge=aux_node,
                                 v_of_edge=prec_arg_node,
