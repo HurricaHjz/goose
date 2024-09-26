@@ -2,6 +2,11 @@
 
 GOOSE is a learning for planning framework. It contains various methods for learning representations for planning tasks, and algorithms for using such representations for solving planning tasks.
 
+- If you just want to use the WL features, take a look at the [WLPlan](https://github.com/DillonZChen/wlplan) package.
+- If you want the code used for our ICAPS-24 paper, refer to the [ICAPS-24 release](https://github.com/DillonZChen/goose/releases/tag/icaps-24).
+- If you want the code used for our AAAI-24 paper, refer to the [AAAI-24 release](https://github.com/DillonZChen/goose/releases/tag/aaai-24).
+- Future releases will deprecate support for GNN models and will be built around the WLPlan package.
+
 See [references](#references) for the corresponding publications.
 
 ## Table of contents
@@ -82,10 +87,8 @@ python3 run_gnn.py benchmarks/ipc23-learning/blocksworld/domain.pddl benchmarks/
 ## References
 The relevant publications for this repository are:
 
-- Dillon Ze Chen and Felipe Trevizan and Sylvie Thiébaux. **Return to Tradition: Learning Reliable Heuristics with Classical Machine Learning**. ICAPS 2024.
-- Dillon Ze Chen and Sylvie Thiébaux and Felipe Trevizan. **Learning Domain-Independent Heuristics for Grounded and Lifted Planning**. AAAI 2024. [[pdf](https://dillonzchen.github.io/publications/Chen2024Goose.pdf)]
-- Dillon Ze Chen and Sylvie Thiébaux and Felipe Trevizan. **GOOSE: Learning Domain-Independent Heuristics**. Genplan 2023. [[pdf](https://dillonzchen.github.io/publications/Chen2023Wl.pdf)]
-- Dillon Ze Chen and Felipe Trevizan and Sylvie Thiébaux. **Graph Neural Networks and Graph Kernels For Learning Heuristics: Is there a difference?**. Genplan 2023. [[pdf](https://dillonzchen.github.io/publications/Chen2023Goose.pdf)]
+- Dillon Ze Chen and Felipe Trevizan and Sylvie Thiébaux. **Return to Tradition: Learning Reliable Heuristics with Classical Machine Learning**. ICAPS 2024. [[pdf](https://dillonzchen.github.io/publications/chen-trevizan-thiebaux-icaps2024.pdf)]
+- Dillon Ze Chen and Sylvie Thiébaux and Felipe Trevizan. **Learning Domain-Independent Heuristics for Grounded and Lifted Planning**. AAAI 2024. [[pdf](https://dillonzchen.github.io/publications/chen-thiebaux-trevizan-aaai2024.pdf)]
 
 ### AAAI-24 Experiments
 For source code corresponding to experiments from our AAAI-24 publication, please refer to this [release](https://github.com/DillonZChen/goose/releases/tag/aaai-24).
@@ -117,10 +120,14 @@ For the bibtex file for WL and GNN architectures using the `ilg` graph represent
 
 ## Code acknowledgements
 - [Fast Downward](https://github.com/aibasel/downward) by Malte Helmert and various contributors for the planning parser, grounder and grounded search algorithm.
-- [scorpion](https://github.com/jendrikseipp/scorpion) by Jendrik Seipp for a powerful optimal planner for generating planning instances.
+- [Scorpion](https://github.com/jendrikseipp/scorpion) by Jendrik Seipp for a powerful optimal planner for generating planning instances.
 - [Powerlifted](https://github.com/abcorrea/powerlifted) by Augusto B. Corrêa and various contributors for their lifted planner.
 - All the other various packages listed in the requirements
 
 ## TODOs
-- Keep static facts when training and evaluating on Fast Downward states. This could be done by initial state set minus FD preprocessed facts.
-- Reimplement evaluation using Powerlifted.
+The next release will aim to support the following features:
+- Even faster heuristic evaluation
+- An option to keep static facts when training and evaluating by considering schema effects.
+- Evaluation using Powerlifted for problems that cannot be grounded such as Beluga.
+- Ranking formulations for heuristic prediction, e.g. [RankSVM](https://arxiv.org/abs/1608.01302) or [DirectRanker](https://felipe.trevizan.org/papers/hao24:ranking.pdf)
+- Apptainer recipe
