@@ -56,6 +56,7 @@ class Condition:
     def uniquify_variables(self, type_map, renamings={}):
         # Cannot used _postorder_visit because this requires preorder
         # for quantified effects.
+        # transfer every part into corresponding variable map, not affecting non QuantifiedConditions
         if not self.parts:
             return self
         else:
@@ -167,7 +168,7 @@ class Conjunction(JunctorCondition):
             return Truth()
         if len(result_parts) == 1:
             return result_parts[0]
-        return Conjunction(result_parts)
+        return Conjunction(result_parts) # simplify to CNF
 
     def to_untyped_strips(self):
         result = []
@@ -360,6 +361,7 @@ class Literal(Condition):
 
 
 class Atom(Literal):
+    # each containing predicate, args
     negated = False
 
     def to_untyped_strips(self):

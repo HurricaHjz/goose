@@ -59,6 +59,7 @@ class TypedObject:
         )
 
     def uniquify_name(self, type_map, renamings):
+        # update ?b -> ?b1 -> ?b2 .... all the way until there's no conflict in type_map
         if self.name not in type_map:
             type_map[self.name] = self.type_name
             return self

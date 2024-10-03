@@ -10,6 +10,8 @@ def parse_typed_list(
     constructor=pddl.TypedObject,
     default_type="object",
 ):
+    # take a,b,c - type_a or a-type_a,... and output a result of objects with (name, type_name) being (a, type_a)
+    # if only_variables are true, then we have ?loc -location
     result = []
     while alist:
         try:
@@ -37,6 +39,8 @@ def parse_typed_list(
 def set_supertypes(type_list):
     # TODO: This is a two-stage construction, which is perhaps
     # not a great idea. Might need more thought in the future.
+    # update type.supertype_names with all super types
+    # e.g. "location" with supertype "direction" with supertype "object" will result location.supertype_names = ["direction", "object"]
     type_name_to_type = {}
     child_types = []
     for type in type_list:
@@ -49,6 +53,7 @@ def set_supertypes(type_list):
 
 
 def parse_predicate(alist):
+    # parse Predicate(name, arguments) where arguments are a list of TypedObj with name ?x (e.g. road ?from - location ?to - location)
     name = alist[0]
     arguments = parse_typed_list(alist[1:], only_variables=True)
     return pddl.Predicate(name, arguments)
@@ -72,17 +77,17 @@ def parse_condition_aux(alist, negated, type_dict, predicate_dict):
         args = alist[1:]
         if tag == "imply":
             assert len(args) == 2
-        if tag == "not":
+        if tag == "not": #  if not, must be in the form of (not (p1))
             assert len(args) == 1
             return parse_condition_aux(
                 args[0], not negated, type_dict, predicate_dict
             )
-    elif tag in ("forall", "exists"):
-        parameters = parse_typed_list(alist[1])
-        args = alist[2:]
+    elif tag in ("forall", "exists"):  #(forall (?p - packet) (when (timetolive ?p U0) (and (dropped ?p) (not (not-dropped ?p)))))
+        parameters = parse_typed_list(alist[1]) # params
+        args = alist[2:] # parts that followed by params
         assert len(args) == 1
     else:
-        return parse_literal(alist, type_dict, predicate_dict, negated=negated)
+        return parse_literal(alist, type_dict, predicate_dict, negated=negated) # single element, e.g. empty hand
 
     if tag == "imply":
         parts = [
@@ -91,15 +96,15 @@ def parse_condition_aux(alist, negated, type_dict, predicate_dict):
             ),
             parse_condition_aux(args[1], negated, type_dict, predicate_dict),
         ]
-        tag = "or"
+        tag = "or"  # p->q === not p or q
     else:
         parts = [
             parse_condition_aux(part, negated, type_dict, predicate_dict)
-            for part in args
+            for part in args # if and, or, then evalue condition for every single part e.g. and (p1) (p2) (p3), parts = [p1, p2, p3]
         ]
 
     if tag == "and" and not negated or tag == "or" and negated:
-        return pddl.Conjunction(parts)
+        return pddl.Conjunction(parts) #get a conjunction of "parts" each being [p1,p2,p3...]
     elif tag == "or" and not negated or tag == "and" and negated:
         return pddl.Disjunction(parts)
     elif tag == "forall" and not negated or tag == "exists" and negated:
@@ -108,15 +113,15 @@ def parse_condition_aux(alist, negated, type_dict, predicate_dict):
         return pddl.ExistentialCondition(parameters, parts)
 
 
-def parse_literal(alist, type_dict, predicate_dict, negated=False):
-    if alist[0] == "not": #TODO add probability here
+def parse_literal(alist, type_dict, predicate_dict, negated=False): # return either Atom or Negated Atom e.g. clear ?b1 will be Atom with predicate="clear", args ="?b1"
+    if alist[0] == "not": 
         assert len(alist) == 2
         alist = alist[1]
         negated = not negated
 
     pred_id, arity = _get_predicate_id_and_arity(
         alist[0], type_dict, predicate_dict
-    )
+    )  # for example, (clear ?b1) will return (clear, 1)
 
     if arity != len(alist) - 1:
         raise SystemExit(
@@ -133,6 +138,7 @@ SEEN_WARNING_TYPE_PREDICATE_NAME_CLASH = False
 
 
 def _get_predicate_id_and_arity(text, type_dict, predicate_dict):
+    # to check whether id is unique
     global SEEN_WARNING_TYPE_PREDICATE_NAME_CLASH
 
     the_type = type_dict.get(text)
@@ -141,7 +147,7 @@ def _get_predicate_id_and_arity(text, type_dict, predicate_dict):
     if the_type is None and the_predicate is None:
         raise SystemExit("Undeclared predicate: %s" % text)
     elif the_predicate is not None:
-        if the_type is not None and not SEEN_WARNING_TYPE_PREDICATE_NAME_CLASH:
+        if the_type is not None and not SEEN_WARNING_TYPE_PREDICATE_NAME_CLASH: # predicate and type should not have the same name "e.g. no name"
             msg = (
                 "Warning: name clash between type and predicate %r.\n"
                 "Interpreting as predicate in conditions."
@@ -158,8 +164,8 @@ def parse_effects(alist, result, type_dict, predicate_dict):
     """Parse a PDDL effect (any combination of simple, conjunctive, conditional, and universal)."""
     tmp_effect = parse_effect(alist, type_dict, predicate_dict)
     normalized = tmp_effect.normalize()
-    cost_eff, rest_effect = normalized.extract_cost()
-    add_effect(rest_effect, result)
+    cost_eff, rest_effect = normalized.extract_cost() # extract cost effect out from conjunctive effects
+    add_effect(rest_effect, result) #add the result effects into the result list as a conjunctive effect without cost
     if cost_eff:
         return cost_eff.effect
     else:
@@ -175,8 +181,8 @@ def add_effect(tmp_effect, result):
             add_effect(effect, result)
         return
     else:
-        parameters = []
-        condition = pddl.Truth()
+        parameters = [] # should be none for conjunctive effects
+        condition = pddl.Truth() # should be true for conjunctive effects
         if isinstance(tmp_effect, pddl.UniversalEffect):
             parameters = tmp_effect.parameters
             if isinstance(tmp_effect.effect, pddl.ConditionalEffect):
@@ -197,7 +203,8 @@ def add_effect(tmp_effect, result):
         # Check for contradictory effects
         condition = condition.simplified()
         new_effect = pddl.Effect(parameters, condition, effect)
-        contradiction = pddl.Effect(parameters, condition, effect.negate())
+        contradiction = pddl.Effect(parameters, condition, effect.negate()) # should only consist of simple effects
+        # TODO inconsistency occurs? should never happen in effect system
         if contradiction not in result:
             result.append(new_effect)
         else:
@@ -228,6 +235,10 @@ def parse_effect(alist, type_dict, predicate_dict):
         assert alist[1] == ["total-cost"]
         assignment = parse_assignment(alist)
         return pddl.CostEffect(assignment)
+    
+    elif tag == "probabilistic":
+        assert NotImplementedError
+        # TODO add probabilistic here
     else:
         # We pass in {} instead of type_dict here because types must
         # be static predicates, so cannot be the target of an effect.
@@ -263,10 +274,10 @@ def parse_action(alist, type_dict, predicate_dict):
     iterator = iter(alist)
     action_tag = next(iterator)
     assert action_tag == ":action"
-    name = next(iterator)
+    name = next(iterator) # name of action, for example pick-up
     parameters_tag_opt = next(iterator)
     if parameters_tag_opt == ":parameters":
-        parameters = parse_typed_list(next(iterator), only_variables=True)
+        parameters = parse_typed_list(next(iterator), only_variables=True) # params, for example ?b1,?b2 - block as a list of TypedObjects
         precondition_tag_opt = next(iterator)
     else:
         parameters = []
@@ -278,16 +289,16 @@ def parse_action(alist, type_dict, predicate_dict):
             precondition = pddl.Conjunction([])
         else:
             precondition = parse_condition(
-                precondition_list, type_dict, predicate_dict
+                precondition_list, type_dict, predicate_dict # preconditions, e.g. (and (p1) (p2) (not p3)) as Conjunction of parts = [p1, p2, not p3]
             )
         effect_tag = next(iterator)
     else:
-        precondition = pddl.Conjunction([])
+        precondition = pddl.Conjunction([]) # if not happen, then equals to :precondition ()
         effect_tag = precondition_tag_opt
     assert effect_tag == ":effect"
     effect_list = next(iterator)
-    eff = []
-    if effect_list:
+    eff = [] # final result to be added
+    if effect_list:  #(and (emptyhand) (on-table ?b) (not (holding ?b))
         try:
             cost = parse_effects(effect_list, eff, type_dict, predicate_dict)
         except ValueError as e:
@@ -372,6 +383,7 @@ def parse_task(domain_pddl, task_pddl):
 
 
 def parse_domain_pddl(domain_pddl):
+    # next(iterator)
     iterator = iter(domain_pddl)
 
     define_tag = next(iterator)
@@ -439,11 +451,11 @@ def parse_domain_pddl(domain_pddl):
     set_supertypes(the_types)
     yield requirements
     yield the_types
-    type_dict = {type.name: type for type in the_types}
+    type_dict = {type.name: type for type in the_types} # map object or other types to their corresponding types (e.g. location)
     yield type_dict
     yield constants
     yield the_predicates
-    predicate_dict = {pred.name: pred for pred in the_predicates}
+    predicate_dict = {pred.name: pred for pred in the_predicates} # map predicate.name string to corresponding pred obj (e.g. vehicle-at to the actual obj)
     yield predicate_dict
     yield the_functions
 
@@ -455,11 +467,11 @@ def parse_domain_pddl(domain_pddl):
     the_axioms = []
     the_actions = []
     for entry in entries:
-        if entry[0] == ":derived":
+        if entry[0] == ":derived": #parse axioms if any
             axiom = parse_axiom(entry, type_dict, predicate_dict)
             the_axioms.append(axiom)
         else:
-            action = parse_action(entry, type_dict, predicate_dict)
+            action = parse_action(entry, type_dict, predicate_dict) # parse action with type/pred dict
             if action is not None:
                 the_actions.append(action)
     yield the_actions

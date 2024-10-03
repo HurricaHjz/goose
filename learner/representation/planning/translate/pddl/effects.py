@@ -188,7 +188,9 @@ class UniversalEffect:
 
 
 class ConjunctiveEffect:
+    # This is the major block we are going to consider
     def __init__(self, effects: List[AnyEffect]) -> None:
+        # flatten the input effects to include a single conjunctive list. e.g. conjunc(conjunc(a,b),c,d) = conjunc(a,b,c,d)
         flattened_effects = []
         for effect in effects:
             if isinstance(effect, ConjunctiveEffect):
