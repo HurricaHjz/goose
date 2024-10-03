@@ -1,5 +1,5 @@
 import copy
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from . import conditions
 from .conditions import Condition, Literal
@@ -15,8 +15,9 @@ class Action:
         parameters: List[TypedObject],
         num_external_parameters: int,
         precondition: Condition,
-        effects: List[Effect],
-        cost: Optional[Increase],
+        effects: Union[List[Effect], List[Tuple[float, List[Effect]]]], #Modification, now allow pass of probabilistic effects
+        cost: Optional[List[Optional[Increase]]],
+        is_probabilistic = False
     ):
         assert 0 <= num_external_parameters <= len(parameters)
         self.name = name
@@ -26,11 +27,21 @@ class Action:
         # name. Usually all parameters are external, but "invisible"
         # parameters can be created when compiling away existential
         # quantifiers in conditions.
+        if is_probabilistic:
+            assert len(effects) == len(cost), "length of both probability outcome and their cost should be the same"
+            self.effects = []
+            self.prob_effects = effects
+            self.cost = None
+            self.prob_cost = cost
+        else:
+            self.effects = effects
+            self.prob_effects = []
+            self.prob_cost = None
+            self.cost = cost
         self.num_external_parameters = num_external_parameters
         self.precondition = precondition
-        self.effects = effects
-        self.cost = cost
-        self.uniquify_variables()  # TODO: uniquify variables in cost?
+        self.uniquify_variables()
+        self.is_probabilistic_action = is_probabilistic
 
     def __repr__(self):
         return "<Action %r at %#x>" % (self.name, id(self))
@@ -42,6 +53,11 @@ class Action:
         print("Effects:")
         for eff in self.effects:
             eff.dump()
+        print("Probabilities effects:")
+        for prob, effects in self.prob_effects:
+            print("prob - %s: " % str(prob))
+            for eff in effects:
+                eff.dump()
         print("Cost:")
         if self.cost:
             self.cost.dump()
@@ -49,10 +65,15 @@ class Action:
             print("  None")
 
     def uniquify_variables(self):
+        # should not be used for non-conditional actions
         self.type_map = {par.name: par.type_name for par in self.parameters}
         self.precondition = self.precondition.uniquify_variables(self.type_map)
         for effect in self.effects:
             effect.uniquify_variables(self.type_map)
+        # Modification, add uniquify var for prob_effects, might need change later
+        for prob, effects in self.prob_effects:
+            for eff in effects:
+                eff.uniquify_variables(self.type_map)
 
     def relaxed(self):
         new_effects = []

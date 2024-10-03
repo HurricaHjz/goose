@@ -30,6 +30,7 @@ from .effects import CostEffect
 from .effects import Effect
 from .effects import SimpleEffect
 from .effects import UniversalEffect
+from .effects import ProbabilisticEffect
 
 from .f_expression import Assign
 from .f_expression import Increase

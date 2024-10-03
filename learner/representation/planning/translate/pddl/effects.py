@@ -1,9 +1,10 @@
-from typing import Iterable, List, Union
+from typing import Iterable, List, Union, Tuple
 
 from . import conditions
 from .f_expression import Increase
 from .conditions import Condition, Literal
 from .pddl_types import TypedObject
+import copy
 
 AnyEffect = Union[
     "ConditionalEffect",
@@ -11,6 +12,7 @@ AnyEffect = Union[
     "UniversalEffect",
     "SimpleEffect",
     "CostEffect",
+    "ProbabilisticEffect"
 ]
 
 
@@ -186,15 +188,57 @@ class UniversalEffect:
     def extract_cost(self):
         return None, self
 
+class ProbabilisticEffect:
+    # MODIFICATION: probabilistic effect, which include a list of tuples (prob, effect)
+    # need update to account conditional/other
+    def __init__(self, effects: List[Tuple[float, AnyEffect]]) -> None:
+        result_effects = []
+        self.accumulated_prob = 0
+        for prob, effect in effects:
+            # That is the new_effects cannot contain ProbabilisticEffect
+            assert not isinstance(effect, ProbabilisticEffect), NotImplementedError("not allow multi-layer prob effects")
+            assert not isinstance(effect, CostEffect), NotImplementedError("cost should be unit so far")
+            result_effects.append((prob, effect))
+            self.accumulated_prob += prob # add accumulated probabilities
+        assert self.accumulated_prob <= 1, "The accumulated probabilities should be smaller than 1"
+        self.effects = result_effects
+
+    def dump(self, indent="  "):
+        print("%sand" % (indent))
+        for prob, eff in self.effects:
+            print("%sprob - %s:" % (indent), str(prob))
+            eff.dump(indent + "  ")
+
+    def extract_cost(self):
+        return None, self # Not implemented, shouldn't exist cost func
+    
+    def normalize(self):
+        new_effects = []
+        for prob, effect in self.effects: 
+            #TODO implement to allow multi-layer prob effects, now only allow single layer, should be done in self.normalize() function
+            new_effects.append((prob, effect.normalize()))
+            if self.accumulated_prob < 1:
+                # if there's a default no-op, add an empty Conjunctive Effect
+                new_effects.append((1-self.accumulated_prob, ConjunctiveEffect([])))
+        rtn_eff = ProbabilisticEffect(new_effects)
+        assert rtn_eff.accumulated_prob == 1, "Something wrong with normalizing prob effects"
+        return rtn_eff
+    
+
+
 
 class ConjunctiveEffect:
     # This is the major block we are going to consider
     def __init__(self, effects: List[AnyEffect]) -> None:
         # flatten the input effects to include a single conjunctive list. e.g. conjunc(conjunc(a,b),c,d) = conjunc(a,b,c,d)
         flattened_effects = []
+        self.prob_effects = None # a single prob effect is allowed in conjunction
         for effect in effects:
             if isinstance(effect, ConjunctiveEffect):
                 flattened_effects += effect.effects
+            elif isinstance(effect, ProbabilisticEffect):
+                assert self.prob_effects is None, "There should be at max one prob effect within a conjunctive effect"
+                self.prob_effects = effect
             else:
                 flattened_effects.append(effect)
         self.effects = flattened_effects
@@ -207,8 +251,20 @@ class ConjunctiveEffect:
     def normalize(self):
         new_effects = []
         for effect in self.effects:
+            assert not isinstance(effect, ProbabilisticEffect), "Error, this should never happen as our init should remove prob effects"
             new_effects.append(effect.normalize())
-        return ConjunctiveEffect(new_effects)
+        if self.prob_effects is None:
+            return ConjunctiveEffect(new_effects)
+        else:
+            # if contains probabilities, then transfer to Probabilistic Effect
+            temp_prob_effects = self.prob_effects.normalize()
+            new_prob_effects = []
+            for prob, prob_eff in temp_prob_effects.effects:
+                new_temp_effects = copy.deepcopy(new_effects)
+                new_temp_effects.append(prob_eff)
+                new_prob_effect = ConjunctiveEffect(new_temp_effects).normalize() #append conjunctive effects onto prob effects for each probability
+                new_prob_effects.append((prob, new_prob_effect))
+            return ProbabilisticEffect(new_prob_effects)
 
     def extract_cost(self):
         new_effects = []

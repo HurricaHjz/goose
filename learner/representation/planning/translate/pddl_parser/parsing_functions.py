@@ -87,7 +87,7 @@ def parse_condition_aux(alist, negated, type_dict, predicate_dict):
         args = alist[2:] # parts that followed by params
         assert len(args) == 1
     else:
-        return parse_literal(alist, type_dict, predicate_dict, negated=negated) # single element, e.g. empty hand
+        return parse_literal(alist, type_dict, predicate_dict, negated=negated) # single element, e.g. (dropped ?p)
 
     if tag == "imply":
         parts = [
@@ -162,20 +162,35 @@ def _get_predicate_id_and_arity(text, type_dict, predicate_dict):
 
 def parse_effects(alist, result, type_dict, predicate_dict):
     """Parse a PDDL effect (any combination of simple, conjunctive, conditional, and universal)."""
+    # also return true if is parsing probabilistic problem
     tmp_effect = parse_effect(alist, type_dict, predicate_dict)
     normalized = tmp_effect.normalize()
-    cost_eff, rest_effect = normalized.extract_cost() # extract cost effect out from conjunctive effects
-    add_effect(rest_effect, result) #add the result effects into the result list as a conjunctive effect without cost
-    if cost_eff:
-        return cost_eff.effect
+    # MODIFICATION: now should also allow ProbabilisticEffect to be added
+    if isinstance(normalized, pddl.ProbabilisticEffect):
+        prob_costs = []
+        for prob, effect in normalized.effects:
+            prob_results = []
+            cost_eff, rest_effect = effect.extract_cost()
+            add_effect(rest_effect, prob_results)
+            result.append((prob, prob_results.copy()))
+            if cost_eff:
+                prob_costs.append(cost_eff.effect) # should always be this case
+            else:
+                prob_costs.append(None) 
+        return prob_costs, True
+    
     else:
-        return None
+        cost_eff, rest_effect = normalized.extract_cost() # extract cost effect out from conjunctive effects
+        add_effect(rest_effect, result) #add the result effects into the result list as a conjunctive effect without cost
+        if cost_eff:
+            return cost_eff.effect, False
+        else:
+            return None, False
 
 
 def add_effect(tmp_effect, result):
     """tmp_effect has the following structure:
     [ConjunctiveEffect] [UniversalEffect] [ConditionalEffect] SimpleEffect."""
-
     if isinstance(tmp_effect, pddl.ConjunctiveEffect):
         for effect in tmp_effect.effects:
             add_effect(effect, result)
@@ -213,6 +228,15 @@ def add_effect(tmp_effect, result):
                 result.remove(contradiction)
                 result.append(new_effect)
 
+def parse_float(num_string):
+    print(f"Test print, num string is: {num_string}")
+    # Check if the input is in fractional form (e.g., "2/5")
+    if '/' in num_string:
+        numerator, denominator = num_string.split('/')
+        return float(numerator) / float(denominator)
+    else:
+        # Assume it is a float representation (e.g., "0.8", "0.7")
+        return float(num_string)
 
 def parse_effect(alist, type_dict, predicate_dict):
     tag = alist[0]
@@ -237,8 +261,14 @@ def parse_effect(alist, type_dict, predicate_dict):
         return pddl.CostEffect(assignment)
     
     elif tag == "probabilistic":
-        assert NotImplementedError
-        # TODO add probabilistic here
+        # MODIFICATION update probabilistic parser
+        alist = alist[1:]
+        assert len(alist) % 2 == 0, "The probabilistic list length is not even."
+        effects = []
+        while alist:
+            effects.append((parse_float(alist[0]), parse_effect(alist[1], type_dict, predicate_dict)))
+            alist = alist[2:]
+            return pddl.ProbabilisticEffect(effects)
     else:
         # We pass in {} instead of type_dict here because types must
         # be static predicates, so cannot be the target of an effect.
@@ -300,14 +330,14 @@ def parse_action(alist, type_dict, predicate_dict):
     eff = [] # final result to be added
     if effect_list:  #(and (emptyhand) (on-table ?b) (not (holding ?b))
         try:
-            cost = parse_effects(effect_list, eff, type_dict, predicate_dict)
+            cost, is_probabilistic = parse_effects(effect_list, eff, type_dict, predicate_dict)
         except ValueError as e:
             raise SystemExit("Error in Action %s\nReason: %s." % (name, e))
     for rest in iterator:
         assert False, rest
     if eff:
         return pddl.Action(
-            name, parameters, len(parameters), precondition, eff, cost
+            name, parameters, len(parameters), precondition, eff, cost, is_probabilistic=is_probabilistic
         )
     else:
         return None
