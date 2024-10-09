@@ -45,6 +45,9 @@ class Action:
 
     def __repr__(self):
         return "<Action %r at %#x>" % (self.name, id(self))
+    
+    def __lt__(self, other):
+        return self.name < other.name
 
     def dump(self):
         print("%s(%s)" % (self.name, ", ".join(map(str, self.parameters))))

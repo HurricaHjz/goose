@@ -229,7 +229,6 @@ def add_effect(tmp_effect, result):
                 result.append(new_effect)
 
 def parse_float(num_string):
-    print(f"Test print, num string is: {num_string}")
     # Check if the input is in fractional form (e.g., "2/5")
     if '/' in num_string:
         numerator, denominator = num_string.split('/')
@@ -268,7 +267,7 @@ def parse_effect(alist, type_dict, predicate_dict):
         while alist:
             effects.append((parse_float(alist[0]), parse_effect(alist[1], type_dict, predicate_dict)))
             alist = alist[2:]
-            return pddl.ProbabilisticEffect(effects)
+        return pddl.ProbabilisticEffect(effects)
     else:
         # We pass in {} instead of type_dict here because types must
         # be static predicates, so cannot be the target of an effect.
@@ -366,7 +365,7 @@ def parse_task(domain_pddl, task_pddl):
         predicates,
         predicate_dict,
         functions,
-        actions,
+        actions, 
         axioms,
     ) = parse_domain_pddl(domain_pddl)
     (
@@ -406,7 +405,7 @@ def parse_task(domain_pddl, task_pddl):
         functions,
         init,
         goal,
-        actions,
+        actions, # a list of actions
         axioms,
         use_metric,
     )

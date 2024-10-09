@@ -26,8 +26,8 @@ def parse_args():
     parser.add_argument("plans_tests_dir")
 
     # model params
-    parser.add_argument("-L", "--nlayers", type=int, default=4)
-    parser.add_argument("-H", "--nhid", type=int, default=64)
+    parser.add_argument("-L", "--nlayers", type=int, default=4) # num of message passing layers
+    parser.add_argument("-H", "--nhid", type=int, default=64) # hidden dimensionality
     parser.add_argument(
         "--aggr",
         type=str,

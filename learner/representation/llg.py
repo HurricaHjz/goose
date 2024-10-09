@@ -31,7 +31,7 @@ class LlgEdgeLabels(Enum):
     EFF_NEG = 5
 
 
-INDEX_FEAT_SIZE = 4
+INDEX_FEAT_SIZE = 4 # use to compute how long will T be where T is the feature length for index function i
 
 
 class LiftedLearningGraph(Representation):
@@ -305,9 +305,9 @@ class LiftedLearningGraph(Representation):
                 largest_action_schema, len(action.parameters)
             )
             for i, arg in enumerate(action.parameters):
-                arg_node = (action.name, f"action-var-{i}")  # action var
+                arg_node = (action.name, f"action-var-{i}")  # action var, a_i e.g. stack-x
                 G.add_node(arg_node, x=len(LlgFeatures) + i) # schema args
-                action_args[arg.name] = arg_node
+                action_args[arg.name] = arg_node # store stack-x, stack-y
                 G.add_edge(
                     u_of_edge=action.name,
                     v_of_edge=arg_node,
@@ -318,8 +318,8 @@ class LiftedLearningGraph(Representation):
                 for z, predicate in enumerate(predicates):
                     pred = predicate.predicate
                     # aux node for duplicate preds
-                    aux_node = (pred, f"{edge_label}-aux-{z}")
-                    G.add_node(aux_node, x=LlgFeatures.Z.value) # schema predicates
+                    aux_node = (pred, f"{edge_label}-aux-{z}") # BUG, should not use z as it will not represent p-a-f
+                    G.add_node(aux_node, x=LlgFeatures.Z.value) # schema predicates, p-a-f, e.g. on-del-1
 
                     assert pred in G.nodes()
                     G.add_edge(
@@ -332,8 +332,8 @@ class LiftedLearningGraph(Representation):
                     if len(predicate.args) > 0:
                         for j, arg in enumerate(predicate.args):
                             prec_arg_node = (
-                                arg,
-                                f"{edge_label}-aux-{z}-var-{j}",
+                                arg, # ?x
+                                f"{edge_label}-aux-{z}-var-{j}", # p-a-f-i, e.g. on-del-1-x
                             )
                             G.add_node(prec_arg_node, x=len(LlgFeatures) + j) # predicate args
                             G.add_edge(
@@ -343,13 +343,13 @@ class LiftedLearningGraph(Representation):
                             )
 
                             if arg in action_args:
-                                action_arg_node = action_args[arg]
+                                action_arg_node = action_args[arg] # stack-x
                                 G.add_edge(
                                     u_of_edge=prec_arg_node,
                                     v_of_edge=action_arg_node,
                                     edge_label=edge_label,
                                 )
-                    else:  # unitary predicate so connect directly to action
+                    else:  # unitary predicate so connect directly to action e.g. hand-empty()
                         G.add_edge(
                             u_of_edge=aux_node,
                             v_of_edge=action.name,
@@ -367,6 +367,7 @@ class LiftedLearningGraph(Representation):
                     pos_pres.append(p)
                 elif type(p) == NegatedAtom:
                     neg_pres.append(p)
+                    print(f"negated pre: {neg_pres}")
             for p in action.effects:
                 if type(p.condition) != Truth:
                     raise NotImplementedError(

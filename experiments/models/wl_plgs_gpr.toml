@@ -1,0 +1,8 @@
+[model]
+method = "wl"
+
+[config]
+model = "gpr"
+rep = "plg_s"
+features = "1wl"
+iterations = 10

@@ -4,6 +4,7 @@ from .flg import FdrLearningGraph
 from .llg import LiftedLearningGraph
 from .ilg import InstanceLearningGraph
 from .opg import ObjectPairGraph
+from .plg_s import ProbabilisitcLiftedLearningGraphSimple
 from .planning import State
 
 
@@ -13,4 +14,5 @@ REPRESENTATIONS = {
     "llg": LiftedLearningGraph,
     "ilg": InstanceLearningGraph,
     "opg": ObjectPairGraph,
+    "plg_s": ProbabilisitcLiftedLearningGraphSimple
 }

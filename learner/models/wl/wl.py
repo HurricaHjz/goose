@@ -85,6 +85,8 @@ class Model:
         self._rep_type = args.rep
         self._representation = None
 
+        print(f"Iteration check: {self._iterations}")
+
         self._wl: WlAlgorithm = GRAPH_FEATURE_GENERATORS[args.features](
             iterations=self._iterations, prune=self._prune
         )

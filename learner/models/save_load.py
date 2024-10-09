@@ -26,6 +26,8 @@ def arg_to_params(args, in_feat=4, out_feat=1):
         "pool": pool,
         "rep": rep,
     }
+    print("TEST PRINT:")
+    print(model_params)
     return model_params
 
 

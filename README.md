@@ -57,11 +57,17 @@ python3 train.py experiments/models/wl_ilg_gpr.toml experiments/ipc23-learning/b
 python3 train.py experiments/models/gnn_mean_ilg.toml experiments/ipc23-learning/blocksworld.toml --save-file blocksworld_gnn.model
 ```
 ### Example for WL models on MCMP
+MINE PLG NON-DET 
+DILLONS ILG DET
 ```
-python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/exbw.toml --save-file mcmp_exbw_wl.model
+python3 train.py experiments/models/wl_plgs_gpr.toml experiments/mcmp/exbw_s.toml --save-file mcmp_exbw_wl_plgs_small.model
+
+python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/exbw_det_s.toml --save-file mcmp_exbw_wl_ilg_small.model
 ```
 ```
-python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire.toml --save-file mcmp_tire_wl.model
+python3 train.py experiments/models/wl_plgs_gpr.toml experiments/mcmp/tire_s.toml --save-file mcmp_tire_wl_plgs_small.model
+
+python3 train.py experiments/models/wl_ilg_gpr.toml experiments/mcmp/tire_det_s.toml --save-file mcmp_tire_wl_plgs_small.model
 ```
 ### Example for GNN models on MCMP
 ```

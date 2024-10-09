@@ -158,6 +158,8 @@ class RGNN(nn.Module):
         self.rep = None
         self.device = None
         self.batch = False
+        print(f"TEST, IN FEAT NUM = {self.in_feat}")
+        print(f"TEST, OUT FEAT NUM = {self.out_feat}")
 
         if params["pool"] == "max":
             self.pool = global_max_pool

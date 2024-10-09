@@ -60,6 +60,9 @@ class Representation(ABC):
         return
 
     def _get_problem_info(self, domain_pddl, problem_pddl) -> None:
+        """Obtain the planning problem, store into self.problem, also store predicate/action schemas with their corresponding values including:\n
+           self.obj_types; self.n_obj_types; self.predicates; self.n_predicates; self.pred_to_idx; self.largest_predicate_size
+           self.actions; self.n_actions; self.act_to_idx; self.largest_action_size"""
         if self.name == "flg":
             self.problem = get_planning_problem(
                 domain_pddl=domain_pddl, problem_pddl=problem_pddl, fdr=True
@@ -75,11 +78,21 @@ class Representation(ABC):
         self.problem = get_planning_problem(
             domain_pddl=domain_pddl, problem_pddl=problem_pddl, fdr=False
         )
-
+        
+        # record the total number of obj_types
+        obj_types = set()
+        for obj in self.problem.objects:
+            obj_types.add(obj.type_name)
+        self.obj_types = sorted(list(obj_types))
+        self.n_obj_types = len(self.obj_types)
+        self.type_to_idx = {
+            obj_type : i for i, obj_type in enumerate(self.obj_types)
+        }
+        # record also predicate schemas with its num and largest param size and store pred_to_idx dict
         self.predicates = sorted(
             [p for p in self.problem.predicates if p.name != "="]
         )
-        self.n_predicates = len(self.predicates)
+        self.n_predicates = len(self.predicates) # num of predict schemas
         self.pred_to_idx = {
             pred.name: i for i, pred in enumerate(self.predicates)
         }
@@ -87,6 +100,21 @@ class Representation(ABC):
         for pred in self.predicates:
             largest_predicate = max(largest_predicate, len(pred.arguments))
         self.largest_predicate_size = largest_predicate
+        
+        # record also act schemas with its num and largest param size and store act_to_idx dict
+        self.actions = sorted(
+            [a for a in self.problem.actions]
+        )
+        self.n_actions = len(self.actions) 
+        largest_action_schema = 0
+        self.act_to_idx = {
+            act.name: j for j, act in enumerate(self.actions)
+        }
+        for act in self.actions:
+            largest_action_schema = max(
+                largest_action_schema, len(act.parameters)
+            )
+        self.largest_action_size = largest_action_schema
         return
 
     def _init_graph(self) -> nx.Graph:

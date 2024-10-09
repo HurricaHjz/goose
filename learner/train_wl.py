@@ -77,7 +77,8 @@ def parse_args():
         "-r",
         "--rep",
         type=str,
-        default="ilg",
+        default="plg_s", 
+        # default="ilg",
         choices=representation.REPRESENTATIONS,
         help="graph representation to use",
     )
