@@ -7,7 +7,11 @@ from .base_class import Representation, LiftedState, TGraph, CGraph
 
 
 
-# WL_colour for Edge indices, default 4 (for pre/effs X pos/neg) + 3 (ap/ug/ag) + 1 (probabilistic action) + i (largest pred param size)
+# WL_colour for Edge indices, consist of:
+# 0-3: pre/effs X pos/neg
+# 4-6: (ap/ug/ag) 
+# 7: (probabilistic action) 
+# i (largest pred param size)
 class PlgsEdgeLabel(Enum):
     PRE_POS = 0 #precon +
     PRE_NEG = 1 #precon -
@@ -41,7 +45,7 @@ def prob_to_colour(probability:float) -> int:
     bucket = round(probability * p)
     
     # Ensure the bucket is between 1 and 21 (in case of rounding errors or float precision)
-    return max(0, min(bucket, p)) + 1
+    return max(0, min(bucket, p))
 
 class ProbabilisitcLiftedLearningGraphSimple(Representation):
     name = "plg_s"
@@ -181,12 +185,15 @@ class ProbabilisitcLiftedLearningGraphSimple(Representation):
             # parse action effects
             if action.is_probabilistic_action:
                 for i, (prob, effects) in enumerate(action.prob_effects):
-                    prob_node = (action.name, f"out-{i}-prob={prob}")
+                    prob_node = (action.name, f"out-{i+1}-prob={prob}")
                     G.add_node(prob_node, x=prob_to_colour(prob)+self.PROB_IDX_COUNTER) # add probability effect node a-i
                     G.add_edge(u_of_edge=action.name, v_of_edge=prob_node, edge_label=PlgsEdgeLabel.PROB_EFF.value)
                     add_edges_effects_wrapper(prob_node, effects) # link effects with a-i
             else:
-                add_edges_effects_wrapper(action.name, action.effects) # if normal action, link effect directly with action node a
+                prob_node = (action.name, f"single-out-prob=1")
+                G.add_node(prob_node, x=prob_to_colour(1.0)+self.PROB_IDX_COUNTER) # add probability effect node a-0 that is the sinlge probabilistic outcome node
+                G.add_edge(u_of_edge=action.name, v_of_edge=prob_node, edge_label=PlgsEdgeLabel.PROB_EFF.value)
+                add_edges_effects_wrapper(prob_node, action.effects) # if normal action, link effect to the single out node
                 
 
         # # end goal

@@ -12,7 +12,6 @@ from .base_class import Representation, LiftedState, TGraph, CGraph
 # 4-6: (ap/ug/ag) 
 # 7: (probabilistic action) 
 # i (largest pred param size)
-# j (largest act param size)
 class PlgsEdgeLabel(Enum):
     PRE_POS = 0 #precon +
     PRE_NEG = 1 #precon -
@@ -27,12 +26,14 @@ _E = len(PlgsEdgeLabel) #length counter for edge label
 
 NUM_PROB_BUCKETS = 21 # num of probability buckets as edges, default 0.05, total 21 
 GROUND_PROP_COLOUR = 0
+SCHEMA_PRECDIATE_COLOUR = 1
 # WL_Colour for nodes consist of:
 # 0：ground proposition node
-# [1, 21]: the probability node for partial action node
-# [22, 22 + O): the object type node
-# [22 + O, 22 + O + P): the predicate schema nodes
-# [22 + O + P, 22 + O + P + A): the action schema nodes 
+# 1: lifted predicate node (used for predicate schema to connect action)
+# [2, 22]: the probability node for partial action node
+# [23, 23 + O): the object type node
+# [23 + O, 23 + O + P): the predicate schema nodes
+# [23 + O + P, 23 + O + P + A): the action schema nodes 
 def prob_to_colour(probability:float) -> int:
     """ transfer probability node to colour index
     """
@@ -46,7 +47,7 @@ def prob_to_colour(probability:float) -> int:
     bucket = round(probability * p)
     
     # Ensure the bucket is between 1 and 21 (in case of rounding errors or float precision)
-    return max(0, min(bucket, p)) + 1
+    return max(0, min(bucket, p))
 
 class ProbabilisitcLiftedLearningGraphLarge(Representation):
     name = "plg_l"
