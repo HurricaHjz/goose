@@ -44,7 +44,7 @@ def prob_to_colour(probability:float) -> int:
     # Scale the probability to range 0-20 and round to the nearest integer
     bucket = round(probability * p)
     
-    # Ensure the bucket is between 1 and 21 (in case of rounding errors or float precision)
+    # Ensure the bucket is between 0 and 20 (in case of rounding errors or float precision)
     return max(0, min(bucket, p))
 
 class ProbabilisitcLiftedLearningGraphSimple(Representation):
@@ -78,7 +78,7 @@ class ProbabilisitcLiftedLearningGraphSimple(Representation):
             domain_pddl,
             problem_pddl,
             n_node_features= 1 + NUM_PROB_BUCKETS + self.n_obj_types + self.n_predicates + self.n_actions,
-            n_edge_labels=len(PlgsEdgeLabel) + self.largest_predicate_size,
+            n_edge_labels=_E + self.largest_predicate_size,
         )
         
     def edge_explanation(self, edge_label:int)->str:

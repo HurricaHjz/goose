@@ -1,5 +1,7 @@
 """ Probabilistic Lifted Learning Graph Simple """
 import torch
+import copy
+from collections import defaultdict
 from enum import Enum
 from torch import Tensor
 from .planning.translate.pddl import Atom, NegatedAtom, Literal, Truth, Effect
@@ -11,8 +13,8 @@ from .base_class import Representation, LiftedState, TGraph, CGraph
 # 0-3: pre/effs X pos/neg
 # 4-6: (ap/ug/ag) 
 # 7: (probabilistic action) 
-# i (largest pred param size)
-class PlgsEdgeLabel(Enum):
+# i (max of the largest pred param/action param size)
+class PlglEdgeLabel(Enum):
     PRE_POS = 0 #precon +
     PRE_NEG = 1 #precon -
     EFF_ADD = 2 #eff +
@@ -22,7 +24,7 @@ class PlgsEdgeLabel(Enum):
     A_GOAL = 6 # achieved goal
     PROB_EFF = 7 # for probabilistic effect node
 
-_E = len(PlgsEdgeLabel) #length counter for edge label
+_E = len(PlglEdgeLabel) #length counter for edge label
 
 NUM_PROB_BUCKETS = 21 # num of probability buckets as edges, default 0.05, total 21 
 GROUND_PROP_COLOUR = 0
@@ -46,7 +48,7 @@ def prob_to_colour(probability:float) -> int:
     # Scale the probability to range 0-20 and round to the nearest integer
     bucket = round(probability * p)
     
-    # Ensure the bucket is between 1 and 21 (in case of rounding errors or float precision)
+    # Ensure the bucket is between 0 and 20 (in case of rounding errors or float precision)
     return max(0, min(bucket, p))
 
 class ProbabilisitcLiftedLearningGraphLarge(Representation):
@@ -57,9 +59,10 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
         self._get_problem_info(domain_pddl, problem_pddl)
         self.colour_explanation = {
             0: "grounded proposition",  # ground prop nodes
+            1: "schema predicate"
         }
-        counter = 1
-        self.PROB_IDX_COUNTER = counter # counter for transfer back to color
+        counter = 2
+        self.PROB_IDX_COUNTER = counter # counter for transfer back to color for probability
         for i in range(NUM_PROB_BUCKETS):
             self.colour_explanation[counter] = f"probabilistic action with chance {i/(NUM_PROB_BUCKETS - 1)}" # prob nodes
             counter += 1
@@ -74,19 +77,19 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
         self.ACT_IDX_COUNTER = counter     
         for i in range(self.n_actions):
             self.colour_explanation[counter] = f"action schema: {self.actions[i].name}"
-            counter += 1
+            # counter += 1
 
         super().__init__(
             domain_pddl,
             problem_pddl,
-            n_node_features= 1 + NUM_PROB_BUCKETS + self.n_obj_types + self.n_predicates + self.n_actions,
-            n_edge_labels=len(PlgsEdgeLabel) + self.largest_predicate_size,
+            n_node_features= 2 + NUM_PROB_BUCKETS + self.n_obj_types + self.n_predicates + self.n_actions,
+            n_edge_labels=_E + max(self.largest_action_size, self.largest_predicate_size),
         )
         
     def edge_explanation(self, edge_label:int)->str:
         """help to print out edge label in result graph"""
         if edge_label < _E:
-            return str(PlgsEdgeLabel(edge_label).name)
+            return str(PlglEdgeLabel(edge_label).name)
         else:
             return f"Arg-{edge_label-_E+1}"
 
@@ -137,62 +140,96 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
 
             G.add_node(goal_node, x=GROUND_PROP_COLOUR)  # add fact node as un achieved goal yet
             self._pos_goal_nodes.add(goal_node)
-            G.add_edge(u_of_edge=goal_node, v_of_edge=pred, edge_label = PlgsEdgeLabel.U_GOAL.value) # need to be updated later
+            G.add_edge(u_of_edge=goal_node, v_of_edge=pred, edge_label = PlglEdgeLabel.U_GOAL.value) # need to be updated later
 
 
             for k, arg in enumerate(args):
-                # connect fact to object
+                # connect fact proposition to object
                 G.add_edge(u_of_edge=goal_node, v_of_edge=arg, edge_label=_E+k)
         
         # Actions
         for action in self.actions:
-            G.add_node(action.name, x = self.act_to_idx[action.name] + self.ACT_IDX_COUNTER) # add action schema node a
+            G.add_node(action.name, x = self.act_to_idx[action.name] + self.ACT_IDX_COUNTER) # add action schema node A
+            # map each action arg to a tuple of corresponding (arg_index, precondition schema node), ?x : [(0, p_1(?x)), (1, p_2(?y, ?x))] 
+            action_arg_to_pre = defaultdict(list) # args dictionary to preconditions
+        
             # link action/pred schema together with preconditions of the action node a
             for fact in action.precondition.parts:
                 pred = fact.predicate
-                # args = fact.args
+                args = fact.args
                 if pred == "=":
                     continue
                 assert pred in G.nodes(), f"Error, {pred} not in created nodes"
+
                 if type(fact) == Atom:
-                    G.add_edge(u_of_edge=pred, v_of_edge=action.name, edge_label=PlgsEdgeLabel.PRE_POS.value)
+                    schema_node = (pred, "PRE_POS")
+                    G.add_node(schema_node, x = SCHEMA_PRECDIATE_COLOUR) # add precondition node, nx.Graph automatically delete duplicates
+                    G.add_edge(u_of_edge=schema_node, v_of_edge=action.name, edge_label=PlglEdgeLabel.PRE_POS.value)
+                    G.add_edge(u_of_edge=schema_node, v_of_edge=pred, edge_label=PlglEdgeLabel.PRE_POS.value) # link precondiiton schema node to action
+                    for k, arg in enumerate(args):
+                        action_arg_to_pre[arg].append((k, schema_node)) # append (0, p_1()+) to act_to_pre+[?x] for pre: p_1(?x)
+
                 elif type(fact) == NegatedAtom:
-                    G.add_edge(u_of_edge=pred, v_of_edge=action.name, edge_label=PlgsEdgeLabel.PRE_NEG.value)
+                    schema_node = (pred, "PRE_NEG")
+                    G.add_node(schema_node, x = SCHEMA_PRECDIATE_COLOUR) # add precondition node
+                    G.add_edge(u_of_edge=schema_node, v_of_edge=action.name, edge_label=PlglEdgeLabel.PRE_NEG.value) # link precondiiton schema node to action
+                    G.add_edge(u_of_edge=schema_node, v_of_edge=pred, edge_label=PlglEdgeLabel.PRE_NEG.value)
+                    for k, arg in enumerate(args):
+                        action_arg_to_pre[arg].append((k, schema_node)) # append (0, p_1()-) to act_to_pre-[?x] for pre: -p_1(?x)
                 else:
                     raise NotImplementedError("parser error in preconditions")
             
             def add_edges_effects_wrapper(act_node, effects: list[Effect]):
                 ''' help function wrapper to add (probabilistic) effects'''
-                def add_edges_effects(act_node, edge_label:int, facts: list[Literal]):
-                    ''' help function to add (probabilistic) effects'''
-                    for fact in facts:
-                        pred = fact.predicate
-                        assert fact.predicate in G.nodes(), f"Error, {pred} not in created nodes"
-                        G.add_edge(u_of_edge=act_node, v_of_edge=pred, edge_label=edge_label)
-                
-                pos_effs = []
-                neg_effs = []
+                # store and add effects to a-i node
+                action_arg_to_eff = defaultdict(list) # action args to effects
                 for p in effects:
                     if type(p.condition) != Truth:
                         raise NotImplementedError("Conditional effects not implemented")
                     if type(p.literal) == Atom:
-                        pos_effs.append(p.literal)
+                        pred = p.literal.predicate
+                        args = p.literal.args
+                        assert pred in G.nodes(), f"Error, {pred} not in created nodes"
+                        schema_node = (pred, "EFF_ADD")
+                        G.add_node(schema_node, x = SCHEMA_PRECDIATE_COLOUR) # add positive effect node, nx.Graph automatically delete duplicates
+                        G.add_edge(u_of_edge=schema_node, v_of_edge=act_node, edge_label=PlglEdgeLabel.EFF_ADD.value) 
+                        G.add_edge(u_of_edge=schema_node, v_of_edge=pred, edge_label=PlglEdgeLabel.EFF_ADD.value) # link effect schema node to action effect node
+                        for k, arg in enumerate(args):
+                            action_arg_to_eff[arg].append((k, schema_node)) # append (0, p_1()+) to act_to_pre+[?x] for eff: p_1(?x)
                     elif type(p.literal) == NegatedAtom:
-                        neg_effs.append(p.literal)
+                        pred = p.literal.predicate
+                        args = p.literal.args
+                        assert pred in G.nodes(), f"Error, {pred} not in created nodes"
+                        schema_node = (pred, "EFF_DEL")
+                        G.add_node(schema_node, x = SCHEMA_PRECDIATE_COLOUR) # add negative effect node, nx.Graph automatically delete duplicates
+                        G.add_edge(u_of_edge=schema_node, v_of_edge=act_node, edge_label=PlglEdgeLabel.EFF_DEL.value) 
+                        G.add_edge(u_of_edge=schema_node, v_of_edge=pred, edge_label=PlglEdgeLabel.EFF_DEL.value) # link effect schema node to action effect node
+                        for k, arg in enumerate(args):
+                            action_arg_to_eff[arg].append((k, schema_node)) # append (0, p_1()+) to act_to_pre+[?x] for eff: p_1(?x)
                     else:
                         raise NotImplementedError("parser error in effects")
-                add_edges_effects(act_node, PlgsEdgeLabel.EFF_ADD.value, pos_effs)
-                add_edges_effects(act_node, PlgsEdgeLabel.EFF_DEL.value, neg_effs)
+                # loop for all action parameters
+                for k, arg in enumerate(action.parameters): #here arg is TypedObj with .name and .type_name
+                    arg_node = (act_node, arg.name) # create a-i.?x
+                    G.add_node(arg_node, x = self.type_to_idx[arg.type_name] + self.TYPE_IDX_COUNTER) # ?x - block has the node feature as b1 - block
+                    G.add_edge(u_of_edge=arg_node, v_of_edge=act_node, edge_label=_E + k) # link ?x to a-i with edge label being index k
+                    for j, pre_node in action_arg_to_pre[arg.name]:
+                        G.add_edge(u_of_edge=pre_node, v_of_edge=arg_node, edge_label=_E + j) # link ?x to corresponding effects/preconditions as stored earlier
+                    for j, eff_node in action_arg_to_eff[arg.name]:
+                        G.add_edge(u_of_edge=eff_node, v_of_edge=arg_node, edge_label=_E + j) # link ?x to corresponding effects/preconditions as stored earlier
 
             # parse action effects
             if action.is_probabilistic_action:
                 for i, (prob, effects) in enumerate(action.prob_effects):
-                    prob_node = (action.name, f"out-{i}-prob={prob}")
+                    prob_node = (action.name, f"out-{i+1}-prob={prob}")
                     G.add_node(prob_node, x=prob_to_colour(prob)+self.PROB_IDX_COUNTER) # add probability effect node a-i
-                    G.add_edge(u_of_edge=action.name, v_of_edge=prob_node, edge_label=PlgsEdgeLabel.PROB_EFF.value)
+                    G.add_edge(u_of_edge=action.name, v_of_edge=prob_node, edge_label=PlglEdgeLabel.PROB_EFF.value)
                     add_edges_effects_wrapper(prob_node, effects) # link effects with a-i
             else:
-                add_edges_effects_wrapper(action.name, action.effects) # if normal action, link effect directly with action node a
+                prob_node = (action.name, f"single-out-prob=1")
+                G.add_node(prob_node, x=prob_to_colour(1.0)+self.PROB_IDX_COUNTER) # add probability effect node a-0 that is the sinlge probabilistic outcome node
+                G.add_edge(u_of_edge=action.name, v_of_edge=prob_node, edge_label=PlglEdgeLabel.PROB_EFF.value)
+                add_edges_effects_wrapper(prob_node, action.effects) # if normal action, link effect to the single out node
                 
 
         # # end goal
@@ -221,18 +258,18 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
 
             # activated proposition overlaps with a goal Atom
             if node in self._pos_goal_nodes:
-                c_graph.add_edge(u_of_edge=node, v_of_edge=pred, edge_label = PlgsEdgeLabel.A_GOAL.value) #update existing edge to achieved goal
+                c_graph.add_edge(u_of_edge=node, v_of_edge=pred, edge_label = PlglEdgeLabel.A_GOAL.value) #update existing edge to achieved goal
                 continue
 
             # else add node and corresponding edges to graph
             c_graph.add_node(node, x=GROUND_PROP_COLOUR)
-            c_graph.add_edge(u_of_edge=node, v_of_edge=pred, edge_label = PlgsEdgeLabel.ACH_POS.value)
+            c_graph.add_edge(u_of_edge=node, v_of_edge=pred, edge_label = PlglEdgeLabel.ACH_POS.value)
 
             for k, obj in enumerate(args):
                 # connect fact to object
                 assert obj in c_graph.nodes, f"obj {obj} not in existing nodes"
-                c_graph.add_edge(u_of_edge=node, v_of_edge=obj, edge_label=_E+k)
-                c_graph.add_edge(v_of_edge=node, u_of_edge=obj, edge_label=_E+k)
+                c_graph.add_edge(u_of_edge=node, v_of_edge=obj, edge_label=_E +k)
+                c_graph.add_edge(v_of_edge=node, u_of_edge=obj, edge_label=_E +k)
 
         return c_graph
     

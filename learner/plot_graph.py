@@ -1,4 +1,4 @@
-from representation import plg_s, llg, ilg
+from representation import plg_s, llg, ilg, plg_l
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -8,7 +8,7 @@ import os
 if __name__ == "__main__":
         domain_filename= "/home/moss/COMP4550/goose/benchmarks/mcmp/test/test_domain.pddl"
         task_filename="/home/moss/COMP4550/goose/benchmarks/mcmp/test/test_task.pddl"
-        prob = plg_s.ProbabilisitcLiftedLearningGraphSimple(domain_filename, task_filename)
+        prob = plg_l.ProbabilisitcLiftedLearningGraphLarge(domain_filename, task_filename)
         # prob = ilg.InstanceLearningGraph(domain_filename, task_filename)
         # initial_state = ["(p3 a b)","(p3 b c)","(p1 a)","(p2 b)","(p4)"]
         # G = prob.state_to_cgraph(prob.str_to_state(initial_state))
@@ -20,7 +20,7 @@ if __name__ == "__main__":
         # G = prob.G.copy()
 
         # Define positions for the nodes
-        pos = nx.circular_layout(G)
+        pos = nx.shell_layout(G)
 
         # Generate a unique color map for each unique value of "x" attribute
         unique_x_values = list(set(nx.get_node_attributes(G, 'x').values()))
@@ -31,8 +31,8 @@ if __name__ == "__main__":
         node_colors = [color_map[G.nodes[node]['x']] for node in G.nodes]
 
         # Draw the graph with custom node colors and display original node IDs as labels
-        nx.draw(G, pos, with_labels=True, labels={node: str(node) for node in G.nodes}, node_color=node_colors, edge_color='gray', font_size=6, font_weight='bold')
-        # nx.draw(G, pos, with_labels=True, labels={node: G.nodes[node]['x'] for node in G.nodes}, node_size=2000, node_color=node_colors, edge_color='gray', font_size=12, font_weight='bold')
+        # nx.draw(G, pos, with_labels=True, labels={node: str(node) for node in G.nodes}, node_color=node_colors, edge_color='gray', font_size=6)
+        nx.draw(G, pos, with_labels=True, labels={node: G.nodes[node]['x'] for node in G.nodes}, node_size=2000, node_color=node_colors, edge_color='gray', font_size=12, font_weight='bold')
         
         # edge_labels = {(u, v): G[u][v]["edge_label"] for u, v in G.edges}
         edge_labels = {(u, v): prob.edge_explanation(G[u][v]["edge_label"]) for u, v in G.edges}
