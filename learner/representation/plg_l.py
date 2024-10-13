@@ -26,16 +26,25 @@ class PlglEdgeLabel(Enum):
 
 _E = len(PlglEdgeLabel) #length counter for edge label
 
+PROB_VAL = 0.05
 NUM_PROB_BUCKETS = 21 # num of probability buckets as edges, default 0.05, total 21 
 GROUND_PROP_COLOUR = 0
 SCHEMA_PRECDIATE_COLOUR = 1
 # WL_Colour for nodes consist of:
+# ### archieved
+# # 0：ground proposition node
+# # 1: lifted predicate node (used for predicate schema to connect action)
+# # [2, 22]: the probability node for partial action node
+# # [23, 23 + O): the object type node
+# # [23 + O, 23 + O + P): the predicate schema nodes
+# # [23 + O + P, 23 + O + P + A): the action schema nodes 
+
 # 0：ground proposition node
 # 1: lifted predicate node (used for predicate schema to connect action)
-# [2, 22]: the probability node for partial action node
-# [23, 23 + O): the object type node
-# [23 + O, 23 + O + P): the predicate schema nodes
-# [23 + O + P, 23 + O + P + A): the action schema nodes 
+# [2, 2 + O): the object type node
+# [2 + O, 2 + O + P): the predicate schema nodes
+# [2 + O + P, 2 + O + P + A): the action schema nodes 
+# [2 + O + P + A, 22 + O + P + A]: the probability node for partial action node
 def prob_to_colour(probability:float) -> int:
     """ transfer probability node to colour index
     """
@@ -62,10 +71,6 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
             1: "schema predicate"
         }
         counter = 2
-        self.PROB_IDX_COUNTER = counter # counter for transfer back to color for probability
-        for i in range(NUM_PROB_BUCKETS):
-            self.colour_explanation[counter] = f"probabilistic action with chance {i/(NUM_PROB_BUCKETS - 1)}" # prob nodes
-            counter += 1
         self.TYPE_IDX_COUNTER = counter
         for i in range(self.n_obj_types):
             self.colour_explanation[counter] = f"object type: {self.obj_types[i]}"
@@ -77,14 +82,19 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
         self.ACT_IDX_COUNTER = counter     
         for i in range(self.n_actions):
             self.colour_explanation[counter] = f"action schema: {self.actions[i].name}"
-            # counter += 1
+            counter += 1
+        self.PROB_IDX_COUNTER = counter # counter for transfer back to color for probability
+        for i in range(NUM_PROB_BUCKETS):
+            self.colour_explanation[counter] = f"probabilistic action with chance {i/(NUM_PROB_BUCKETS - 1)}" # prob nodes
+            counter += 1
 
         super().__init__(
             domain_pddl,
             problem_pddl,
-            n_node_features= 2 + NUM_PROB_BUCKETS + self.n_obj_types + self.n_predicates + self.n_actions,
+            n_node_features= 2 + self.n_obj_types + self.n_predicates + self.n_actions + 1,
             n_edge_labels=_E + max(self.largest_action_size, self.largest_predicate_size),
         )
+        print(self.n_node_features, self.PROB_IDX_COUNTER)
         
     def edge_explanation(self, edge_label:int)->str:
         """help to print out edge label in result graph"""
@@ -274,57 +284,52 @@ class ProbabilisitcLiftedLearningGraphLarge(Representation):
         return c_graph
     
     def _colour_to_tensor(self, colour: int) -> Tensor:
-        return self._one_hot_node(colour)
+        ret = torch.zeros(self.n_node_features)
+        if colour<self.PROB_IDX_COUNTER:
+            ret[colour] = 1
+        else:
+            prob_colour = colour - self.PROB_IDX_COUNTER
+            ret[-1] = prob_colour * PROB_VAL
+        
+        return ret
     
 
     def state_to_tgraph(self, state: LiftedState) -> TGraph:
-        """States are represented as a list of (pred, [args])"""
-        return None
-        # x = self.x.clone()
-        # edge_indices = self.edge_indices.copy()
-        # i = len(x)
+        """Converts nx graph into pytorch_geometric tensors and stores them.
+        Use a variant of convert_to_pyg to combine with state_to_cgraph and achieve computation
+        no longer require an pre calling of convert_to_pyg() before training
 
-        # to_add = sum(len(fact[1]) + 1 for fact in state)
-        # x = torch.nn.functional.pad(x, (0, 0, 0, to_add), "constant", 0)
-        # new_edges = {i: [] for i in range(-1, self.largest_predicate_size)}
+        The tensors are (x, edge_index or edge_indices)
+        x: torch.tensor(N x F)  # N = num_nodes, F = num_features
+        if n_edge_labels = 1:
+          edge_index: torch.tensor(2 x E)  # E = num_edges
+        else:
+          edge_indices: List[torch.tensor(2 x E_i)]
+        """
+        from torch_geometric.utils.convert import from_networkx
 
-        # for fact in state:
-        #     pred = fact[0]
-        #     args = fact[1]
+        G: nx.Graph = self.state_to_cgraph(state)
+        for node in G.nodes:
+            G.nodes[node]["x"] = self._colour_to_tensor(G.nodes[node]["x"])
+        pyg_G = from_networkx(G)
+        x = pyg_G.x
 
-        #     if len(pred) == 0:
-        #         continue
-
-        #     colour_start = 1 + _F * self.pred_to_idx[pred]
-
-        #     if len(pred) == 0:
-        #         continue
-
-        #     node = (pred, tuple(args))
-
-        #     # activated proposition overlaps with a goal
-        #     if node in self._node_to_i:
-        #         col = colour_start + WlColours.T_POS_GOAL.value
-        #         x[self._node_to_i[node]][col] = 1
-        #         continue
-
-        #     # activated proposition does not overlap with a goal
-        #     col = colour_start + WlColours.T_NON_GOAL.value
-        #     x[i][col] = 1
-
-        #     true_node_i = i
-        #     i += 1
-
-        #     # connect fact to objects
-        #     for k, arg in enumerate(args):
-        #         new_edges[k].append((true_node_i, self._node_to_i[arg]))
-        #         new_edges[k].append((self._node_to_i[arg], true_node_i))
-
-        # for i, new_edges in new_edges.items():
-        #     edge_indices[i] = torch.hstack(
-        #         (edge_indices[i], torch.tensor(new_edges).T)
-        #     ).long()
-
-        # return x, edge_indices
+        if self.n_edge_labels == 1:
+            edge_indices = pyg_G.edge_index
+        else:
+            assert self.n_edge_labels > 1
+            edge_indices = [[] for _ in range(self.n_edge_labels)]
+            edge_index_T = pyg_G.edge_index.T
+            for i, edge_label in enumerate(pyg_G.edge_label):
+                edge_indices[edge_label].append(edge_index_T[i])
+            for i in range(self.n_edge_labels):
+                if len(edge_indices[i]) > 0:
+                    edge_indices[i] = (
+                        torch.vstack(edge_indices[i]).long().T
+                    )
+                else:
+                    edge_indices[i] = torch.tensor([[], []]).long()
+        return x, edge_indices
+    
     
     

@@ -56,7 +56,7 @@ def parse_args():
         "--rep",
         type=str,
         default="ilg",
-        choices=["slg", "flg", "llg", "ilg"],
+        choices=["slg", "flg", "llg", "ilg","plg_s","plg_l"],
         help="graph representation of planning tasks",
     )
     parser.add_argument(

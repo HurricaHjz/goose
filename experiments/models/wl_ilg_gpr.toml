@@ -5,4 +5,4 @@ method = "wl"
 model = "gpr"
 rep = "ilg"
 features = "1wl"
-iterations = 4
+iterations = 10

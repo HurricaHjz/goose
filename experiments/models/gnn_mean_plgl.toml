@@ -1,0 +1,8 @@
+[model]
+method = "gnn"
+
+[config]
+rep = "plg_l"
+aggr = "mean"
+nhid = 64
+nlayers = 10
