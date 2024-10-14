@@ -363,7 +363,10 @@ class Model(nn.Module):
 
     def create_model(self, params):
         self.model = RGNN(params)
-
+    # Modification: add for easier call in cpp
+    def h_help(self, state:List[str]) -> float:
+        return self.h(self.rep.str_to_state(state))
+    
     def h(self, state: State) -> float:
         with torch.no_grad():
             x, edge_index = self.rep.state_to_tgraph(state)

@@ -442,7 +442,11 @@ class Model:
         self, graphs: CGraph, histograms: Optional[List[Histogram]]
     ) -> np.array:
         return self._wl.get_x(graphs, histograms)
-
+    
+    # Modification: add for easier call in cpp
+    def h_help(self, state:List[str]) -> float:
+        return self.h(self._representation.str_to_state(state))
+    
     def h(self, state: State) -> float:
         h = self.h_batch([state])[0]
         return h
