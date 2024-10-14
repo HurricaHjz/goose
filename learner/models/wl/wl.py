@@ -453,7 +453,10 @@ class Model:
         ]
         X = self._wl.get_x(graphs)
         y = self.predict(X)
-        hs = np.rint(y).astype(int).tolist()
+        # print(f"TEST PRINT Y BEFORE {y}")
+        # hs = np.rint(y).astype(int).tolist()
+        # print(f"TEST PRINT Y after {hs}") #MODIFICATION to allow float h val
+        hs = y.astype(float).tolist()
         return hs
 
     def predict_h(self, x: Iterable[float]) -> float:

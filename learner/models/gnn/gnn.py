@@ -371,7 +371,10 @@ class Model(nn.Module):
             for i in range(len(edge_index)):
                 edge_index[i] = edge_index[i].to(self.device)
             h = self.model.forward(x, edge_index, None)
-            h = round(h.item())
+            # print(f'H before round:{h}')
+            # h = round(h.item()) #MODIFICATION to allow float being parsed
+            # print(f'H after round:{h}')
+            h = h.item()
             return h
 
     def h_batch(self, states: List[State]) -> List[float]:

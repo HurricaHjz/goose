@@ -1,47 +1,17 @@
-import torch
-from typing import Tuple, List, Union
+from models.save_load import load_gnn_model_and_setup, load_kernel_model_and_setup
+from typing import FrozenSet, TypeVar
 
-TGraph = Union[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, List[torch.Tensor]]]
+state_string = ["(no-destroyed b1)", "(clear b1)","(holding b1)", "(clear b3)", "(clear b4)", "(no-destroyed b2)", "(no-destroyed b3)", "(on b3 b2)", "(no-destroyed b4)", "(on b4 b5)", "(no-destroyed b5)", "(on-table b2)", "(on-table b5)", "(no-destroyed-table)", "(no-detonated b1)", "(no-detonated b2)", "(no-detonated b3)", "(no-detonated b4)", "(no-detonated b5)"]
+wl_MODEL_PATH = "/home/moss/COMP4550/goose/mcmp_exbw_wl_plgl_small.model"
+# gnn_MODEL_PATH = "/home/moss/COMP4550/mcmp-planner/mcmp_exbw_gnn_plgs_small.model"
+DOMAIN_FILE = "/home/moss/COMP4550/mcmp-planner/benchmarks/mcmp/exbw.domain.NO-COND.pddl"
+TASK_FILE = "/home/moss/COMP4550/mcmp-planner/benchmarks/mcmp/tasks_exbw/exbw_p01-n2-N5-s1.pddl"
 
-def print_tgraph(tgraph: TGraph) -> None:
-    """
-    Helper function to print the TGraph in a readable format.
-    The TGraph is assumed to be in the format Tuple[Tensor, List[Tensor]],
-    where the first Tensor represents node features and the List[Tensor] represents edges.
-    """
-    x, edge_indices = tgraph
-    
-    # Check if edge_indices is a list of tensors
-    if not isinstance(edge_indices, list):
-        print("Error: edge_indices should be a list of tensors.")
-        return
-    
-    # Print nodes and their features
-    print("Nodes and their features:")
-    for idx, features in enumerate(x):
-        print(f"  Node {idx}: Features = {features.tolist()}")
-    
-    # Print edges for each label
-    print("\nEdges by label:")
-    for label_idx, edge_tensor in enumerate(edge_indices):
-        if edge_tensor.numel() == 0:
-            print(f"  Label {label_idx}: No edges")
-            continue
+# model = load_gnn_model_and_setup(gnn_MODEL_PATH, DOMAIN_FILE, TASK_FILE)
+# lifted_state = model.rep.str_to_state(state_string)
 
-        print(f"  Label {label_idx}: Edges =")
-        for edge in edge_tensor.T:
-            u, v = edge.tolist()
-            print(f"    ({u}, {v})")
-
-# Example usage
-if __name__ == "__main__":
-    # Create an example TGraph
-    x = torch.tensor([[1, 0], [0, 1], [1, 1]])  # Node features (3 nodes, 2 features each)
-    edge_indices = [
-        torch.tensor([[0, 1], [1, 2]]),  # Label 0 edges
-        torch.tensor([[2, 0], [1, 0]])   # Label 1 edges
-    ]
-    tgraph = (x, edge_indices)
-    
-    # Print the TGraph
-    print_tgraph(tgraph)
+model = load_kernel_model_and_setup(wl_MODEL_PATH, DOMAIN_FILE, TASK_FILE)
+lifted_state = model._representation.str_to_state(state_string)
+print(model.__class__)
+print(lifted_state)
+print(model.h(lifted_state))
